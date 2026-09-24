@@ -123,7 +123,6 @@ function NightApp() {
 
   return (
     <main className="watercolor-surface relative min-h-dvh overflow-hidden bg-night text-primary-foreground">
-      <CoffeeButton onCopy={copyCoffee} />
       {notice && <div role="status" className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-md bg-paper px-4 py-2 text-sm font-semibold text-ink shadow-lg">{notice}</div>}
 
       {screen === "cover" && (
@@ -139,7 +138,8 @@ function NightApp() {
       )}
 
       {screen === "chat" && (
-        <section className="mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8">
+        <section className="relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8">
+          <CoffeeButton onCopy={copyCoffee} />
           <h1 className="mb-6 text-center text-2xl font-normal text-primary-foreground sm:text-3xl">Estamos en la misma</h1>
           <div className="mb-5 flex min-h-20 items-center gap-3 rounded-[2rem] bg-night-soft px-4 shadow-xl">
             <Button aria-label="Volver al mapa" onClick={() => setScreen("map")} size="icon" variant="ghost" className="shrink-0 rounded-full text-primary-foreground hover:bg-water/20 hover:text-primary-foreground"><ArrowLeft className="size-7" /></Button>
@@ -205,8 +205,8 @@ function ImageScreen({ src, alt, portrait = false, children }: { src: string; al
 function CoffeeButton({ onCopy }: { onCopy: () => void }) {
   const [copied, setCopied] = useState(false);
   return (
-    <Button onClick={() => { void onCopy(); setCopied(true); window.setTimeout(() => setCopied(false), 2200); }} className="fixed bottom-4 right-4 z-30 h-11 rounded-full bg-paper px-4 text-ink shadow-xl hover:bg-paper/90" title="Copiar datos del cafecito">
-      {copied ? <Check className="size-4" /> : <Coffee className="size-4" />}
+    <Button onClick={() => { void onCopy(); setCopied(true); window.setTimeout(() => setCopied(false), 2200); }} className="absolute right-2 top-2 z-30 h-8 gap-1.5 rounded-full bg-paper/95 px-3 text-xs text-ink shadow-lg hover:bg-paper" title="Copiar datos del cafecito">
+      {copied ? <Check className="size-3.5" /> : <Coffee className="size-3.5" />}
       {copied ? "Copiado" : "❤️ Invita un cafecito"}
     </Button>
   );
