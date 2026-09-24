@@ -59,6 +59,12 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-night: var(--night);
+  --color-night-soft: var(--night-soft);
+  --color-water: var(--water);
+  --color-mint: var(--mint);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
 }
 
 :root {
@@ -95,6 +101,12 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+  --night: oklch(0.2 0.09 254);
+  --night-soft: oklch(0.31 0.1 255);
+  --water: oklch(0.72 0.14 220);
+  --mint: oklch(0.76 0.12 178);
+  --paper: oklch(0.99 0.005 250);
+  --ink: oklch(0.25 0.07 252);
 }
 
 .dark {
@@ -140,5 +152,22 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    min-width: 320px;
+    min-height: 100vh;
+    letter-spacing: 0;
+    font-family: Arial, Helvetica, sans-serif;
   }
+}
+
+@keyframes soft-pulse {
+  0%, 100% { opacity: .65; transform: scale(.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.watercolor-surface {
+  background-color: var(--night);
+  background-image:
+    radial-gradient(circle at 14% 18%, color-mix(in oklab, var(--water) 22%, transparent), transparent 34%),
+    radial-gradient(circle at 82% 32%, color-mix(in oklab, var(--night-soft) 55%, transparent), transparent 38%),
+    radial-gradient(circle at 45% 88%, color-mix(in oklab, var(--water) 15%, transparent), transparent 31%);
 }
