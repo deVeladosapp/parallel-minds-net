@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, Check, Coffee, Send } from "lucide-react";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { Conversation, ConversationContent, ConversationEmptyState } from "@/components/ai-elements/conversation";
 import { Message, MessageContent } from "@/components/ai-elements/message";
@@ -128,13 +128,13 @@ function NightApp() {
 
       {screen === "cover" && (
         <ImageScreen src={coverAsset.url} alt="Dos personas sentadas espalda con espalda bajo el título Estamos en la misma">
-          <button aria-label="Entrar" onClick={enter} className="absolute bottom-[1.5%] left-[36.5%] h-[9.5%] w-[27%] cursor-pointer bg-transparent" />
+          <Button aria-label="Entrar" onClick={enter} variant="ghost" className="absolute bottom-[1.5%] left-[36.5%] h-[9.5%] w-[27%] bg-transparent hover:bg-transparent" />
         </ImageScreen>
       )}
 
       {screen === "map" && (
         <ImageScreen src={mapAsset.url} alt="Mapa nocturno de Lara con personas despiertas cerca de ti" portrait>
-          <button aria-label="Entrar al desahogo y hablar con ellos" onClick={() => setScreen("chat")} className="absolute bottom-[3.9%] left-[9%] h-[8%] w-[82%] cursor-pointer rounded-full bg-transparent" />
+          <Button aria-label="Entrar al desahogo y hablar con ellos" onClick={() => setScreen("chat")} variant="ghost" className="absolute bottom-[3.9%] left-[9%] h-[8%] w-[82%] rounded-full bg-transparent hover:bg-transparent" />
         </ImageScreen>
       )}
 
@@ -191,7 +191,7 @@ function NightApp() {
   );
 }
 
-function ImageScreen({ src, alt, portrait = false, children }: { src: string; alt: string; portrait?: boolean; children: React.ReactNode }) {
+function ImageScreen({ src, alt, portrait = false, children }: { src: string; alt: string; portrait?: boolean; children: ReactNode }) {
   return (
     <div className="grid min-h-dvh place-items-center bg-night">
       <div className={portrait ? "relative h-dvh max-h-[1365px] aspect-[768/1365] max-w-full" : "relative w-full max-w-[1152px] aspect-[3/2]"}>
