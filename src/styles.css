@@ -171,3 +171,7 @@
     radial-gradient(circle at 82% 32%, color-mix(in oklab, var(--night-soft) 55%, transparent), transparent 38%),
     radial-gradient(circle at 45% 88%, color-mix(in oklab, var(--water) 15%, transparent), transparent 31%);
 }
+
+[data-lovable-badge] {
+  display: none !important;
+}
