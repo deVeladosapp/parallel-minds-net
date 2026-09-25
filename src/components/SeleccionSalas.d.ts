@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+
 export type SalaChoice = {
   readonly t: string;
   readonly s: string;
@@ -11,4 +13,4 @@ export function SeleccionSalas(props: {
   enteringTema: string | null;
   onBack: () => void;
   onSelect: (sala: SalaChoice) => void | Promise<void>;
-}): JSX.Element;
+}): ReactElement;
