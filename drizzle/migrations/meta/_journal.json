@@ -8,6 +8,13 @@
       "when": 1790222175935,
       "tag": "0000_create_profiles_and_realtime_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790312283455,
+      "tag": "0001_add_chat_rooms_and_presence",
+      "breakpoints": true
     }
   ]
 }

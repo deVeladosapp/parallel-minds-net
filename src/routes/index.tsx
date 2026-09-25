@@ -5,15 +5,17 @@ import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from
 import { Conversation, ConversationContent, ConversationEmptyState } from "@/components/ai-elements/conversation";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
+import { SALAS, SeleccionSalas } from "@/components/SeleccionSalas";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import logoAsset from "@/assets/logo.jpg.asset.json";
-import mapAsset from "@/assets/mapa-clean.jpg.asset.json";
 import coverAsset from "@/assets/portada.jpg.asset.json";
 
-type Screen = "cover" | "map" | "chat";
+type Screen = "cover" | "map" | "rooms" | "chat";
 type ChatMessage = Tables<"messages">;
+type Room = Tables<"rooms">;
+type SalaChoice = (typeof SALAS)[number];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,6 +42,10 @@ function NightApp() {
   const [notice, setNotice] = useState<string | null>(null);
   const [showCoffee, setShowCoffee] = useState(false);
   const [otherAmount, setOtherAmount] = useState("");
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
+  const [activeRoom, setActiveRoom] = useState<Room | null>(null);
+  const [enteringTema, setEnteringTema] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -56,25 +62,77 @@ function NightApp() {
     return () => { active = false; };
   }, []);
 
+  const refreshRoomsAndCounts = useCallback(async () => {
+    const [{ data: roomData }, { data: presenceData }] = await Promise.all([
+      supabase.from("rooms").select("*"),
+      supabase.from("presencia_sala").select("room_id,last_seen"),
+    ]);
+    const currentRooms = roomData ?? [];
+    setRooms(currentRooms);
+    const cutoff = Date.now() - 60_000;
+    const byId = new Map(currentRooms.map((room) => [room.id, room.tema]));
+    const nextCounts: Record<string, number> = {};
+    for (const presence of presenceData ?? []) {
+      const tema = byId.get(presence.room_id);
+      if (tema && new Date(presence.last_seen).getTime() > cutoff) {
+        nextCounts[tema] = (nextCounts[tema] ?? 0) + 1;
+      }
+    }
+    setRoomCounts(nextCounts);
+  }, []);
+
   useEffect(() => {
-    if (screen !== "chat" || !authId) return;
+    if (screen !== "rooms" && screen !== "chat") return;
+    void refreshRoomsAndCounts();
+    const timer = window.setInterval(() => void refreshRoomsAndCounts(), 30_000);
+    const channel = supabase
+      .channel("room-presence-counts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "presencia_sala" }, () => {
+        void refreshRoomsAndCounts();
+      })
+      .subscribe();
+    return () => {
+      window.clearInterval(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [refreshRoomsAndCounts, screen]);
+
+  useEffect(() => {
+    if (screen !== "chat" || !authId || !activeRoom) return;
     let active = true;
     void supabase
       .from("messages")
       .select("*")
+      .eq("room_id", activeRoom.id)
       .order("created_at", { ascending: true })
       .limit(100)
       .then(({ data }) => { if (active && data) setMessages(data); });
 
     const channel = supabase
-      .channel("lara-night-chat")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+      .channel(`lara-night-chat-${activeRoom.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `room_id=eq.${activeRoom.id}` }, (payload) => {
         const incoming = payload.new as ChatMessage;
         setMessages((current) => current.some((item) => item.id === incoming.id) ? current : [...current, incoming]);
       })
       .subscribe();
     return () => { active = false; void supabase.removeChannel(channel); };
-  }, [screen, authId]);
+  }, [screen, authId, activeRoom]);
+
+  useEffect(() => {
+    if (screen !== "chat" || !authId || !activeRoom) return;
+    const touchPresence = async () => {
+      await supabase.from("presencia_sala").upsert(
+        { room_id: activeRoom.id, user_id: authId, last_seen: new Date().toISOString() },
+        { onConflict: "room_id,user_id" },
+      );
+    };
+    void touchPresence();
+    const timer = window.setInterval(() => void touchPresence(), 30_000);
+    return () => {
+      window.clearInterval(timer);
+      void supabase.from("presencia_sala").delete().eq("room_id", activeRoom.id).eq("user_id", authId);
+    };
+  }, [screen, authId, activeRoom]);
 
   const enter = useCallback(() => {
     if (nickname && authId) setScreen("map");
@@ -110,9 +168,45 @@ function NightApp() {
 
   const sendMessage = async ({ text }: { text: string }) => {
     const body = text.trim();
-    if (!body || !authId || !nickname) return;
-    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara" });
+    if (!body || !authId || !nickname || !activeRoom) return;
+    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id });
     if (error) setNotice("Tu mensaje no pudo enviarse. Intenta de nuevo.");
+  };
+
+  const enterRoom = async (choice: SalaChoice) => {
+    if (!authId) return;
+    setEnteringTema(choice.tema);
+    setNotice(null);
+    try {
+      let room = rooms.find((item) => item.tema === choice.tema) ?? null;
+      if (!room) {
+        const { data, error } = await supabase
+          .from("rooms")
+          .insert({ tema: choice.tema, title: choice.t, subtitle: choice.s })
+          .select()
+          .single();
+        if (error) {
+          const { data: existing, error: readError } = await supabase.from("rooms").select("*").eq("tema", choice.tema).single();
+          if (readError) throw readError;
+          room = existing;
+        } else {
+          room = data;
+        }
+      }
+      if (!room) throw new Error("No se pudo abrir la sala.");
+      const { error: presenceError } = await supabase.from("presencia_sala").upsert(
+        { room_id: room.id, user_id: authId, last_seen: new Date().toISOString() },
+        { onConflict: "room_id,user_id" },
+      );
+      if (presenceError) throw presenceError;
+      setMessages([]);
+      setActiveRoom(room);
+      setScreen("chat");
+    } catch {
+      setNotice("No pudimos abrir esta sala. Intenta otra vez.");
+    } finally {
+      setEnteringTema(null);
+    }
   };
 
   const thankForCoffee = () => {
@@ -133,20 +227,24 @@ function NightApp() {
       )}
 
       {screen === "map" && (
-        <ImageScreen src={mapAsset.url} alt="Mapa nocturno de Lara con personas despiertas cerca de ti" portrait>
-          <Button aria-label="Entrar al desahogo y hablar con ellos" onClick={() => setScreen("chat")} variant="ghost" className="absolute bottom-[3.9%] left-[9%] h-[8%] w-[82%] rounded-full bg-transparent hover:bg-transparent" />
-        </ImageScreen>
+        <div className="relative h-dvh w-screen overflow-hidden bg-night">
+          <img src="/venezuela-bg.png" alt="Mapa nocturno de Venezuela con personas desveladas" className="h-full w-full object-cover object-center" />
+          <Button aria-label="Entra a desahogarte y hablar con ellos" onClick={() => setScreen("rooms")} variant="ghost" className="absolute bottom-[3.5%] left-[14%] h-[7%] w-[72%] rounded-full bg-transparent hover:bg-transparent" />
+        </div>
       )}
 
-      {screen === "chat" && (
+      {screen === "rooms" && (
+        <SeleccionSalas counts={roomCounts} enteringTema={enteringTema} onBack={() => setScreen("map")} onSelect={enterRoom} />
+      )}
+
+      {screen === "chat" && activeRoom && (
         <section className="relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8">
           <CoffeeButton onOpen={() => setShowCoffee(true)} />
           <h1 className="mb-6 text-center text-2xl font-normal text-primary-foreground sm:text-3xl">Estamos en la misma</h1>
           <div className="mb-5 flex min-h-20 items-center gap-3 rounded-[2rem] bg-night-soft px-4 shadow-xl">
-            <Button aria-label="Volver al mapa" onClick={() => setScreen("map")} size="icon" variant="ghost" className="shrink-0 rounded-full text-primary-foreground hover:bg-water/20 hover:text-primary-foreground"><ArrowLeft className="size-7" /></Button>
-            <span className="text-xl" aria-hidden="true">♠</span>
-            <h2 className="min-w-0 flex-1 text-lg font-semibold sm:text-xl">Se fue la luz - Lara</h2>
-            <span className="shrink-0 rounded-full bg-paper px-3 py-2 text-xs font-semibold text-ink sm:text-sm"><span className="text-mint">●</span> 47 desvelados ahora</span>
+             <Button aria-label="Volver a las salas" onClick={() => setScreen("rooms")} size="icon" variant="ghost" className="shrink-0 rounded-full text-primary-foreground hover:bg-water/20 hover:text-primary-foreground"><ArrowLeft className="size-7" /></Button>
+             <h2 className="min-w-0 flex-1 text-base font-semibold leading-tight sm:text-lg">{activeRoom.title} - Lara</h2>
+             <span className="shrink-0 rounded-full bg-paper px-2.5 py-2 text-xs font-semibold text-ink"><span className="text-mint">●</span> {roomCounts[activeRoom.tema] ?? 0} conectados</span>
           </div>
 
           <Conversation className="min-h-0">
