@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           id: string
           nickname: string
+          room_id: string | null
           state: string
           user_id: string
         }
@@ -28,6 +29,7 @@ export type Database = {
           created_at?: string
           id?: string
           nickname: string
+          room_id?: string | null
           state?: string
           user_id: string
         }
@@ -36,10 +38,48 @@ export type Database = {
           created_at?: string
           id?: string
           nickname?: string
+          room_id?: string | null
           state?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presencia_sala: {
+        Row: {
+          id: string
+          last_seen: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          last_seen?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          last_seen?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presencia_sala_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -62,6 +102,30 @@ export type Database = {
           nickname?: string
           state?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      rooms: {
+        Row: {
+          created_at: string
+          id: string
+          subtitle: string
+          tema: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          subtitle: string
+          tema: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          subtitle?: string
+          tema?: string
+          title?: string
         }
         Relationships: []
       }
