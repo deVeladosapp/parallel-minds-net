@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Check, Coffee, Send } from "lucide-react";
+import { ArrowLeft, Coffee, Send, X } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { Conversation, ConversationContent, ConversationEmptyState } from "@/components/ai-elements/conversation";
@@ -9,13 +9,11 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import logoAsset from "@/assets/logo.jpg.asset.json";
-import mapAsset from "@/assets/mapa.jpg.asset.json";
+import mapAsset from "@/assets/mapa-clean.jpg.asset.json";
 import coverAsset from "@/assets/portada.jpg.asset.json";
 
 type Screen = "cover" | "map" | "chat";
 type ChatMessage = Tables<"messages">;
-
-const coffeeText = "Banco BNC 0191 / Tlf 04220432280 / CI 26049337 / Concepto Cafecito Desvelados";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,6 +38,8 @@ function NightApp() {
   const [authId, setAuthId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [showCoffee, setShowCoffee] = useState(false);
+  const [otherAmount, setOtherAmount] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -115,10 +115,11 @@ function NightApp() {
     if (error) setNotice("Tu mensaje no pudo enviarse. Intenta de nuevo.");
   };
 
-  const copyCoffee = async () => {
-    await navigator.clipboard.writeText(coffeeText);
-    setNotice("Datos del cafecito copiados");
-    window.setTimeout(() => setNotice(null), 2400);
+  const thankForCoffee = () => {
+    setShowCoffee(false);
+    setOtherAmount("");
+    setNotice("¡Gracias por tu cafecito! ☕❤️");
+    window.setTimeout(() => setNotice(null), 2600);
   };
 
   return (
@@ -139,7 +140,7 @@ function NightApp() {
 
       {screen === "chat" && (
         <section className="relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8">
-          <CoffeeButton onCopy={copyCoffee} />
+          <CoffeeButton onOpen={() => setShowCoffee(true)} />
           <h1 className="mb-6 text-center text-2xl font-normal text-primary-foreground sm:text-3xl">Estamos en la misma</h1>
           <div className="mb-5 flex min-h-20 items-center gap-3 rounded-[2rem] bg-night-soft px-4 shadow-xl">
             <Button aria-label="Volver al mapa" onClick={() => setScreen("map")} size="icon" variant="ghost" className="shrink-0 rounded-full text-primary-foreground hover:bg-water/20 hover:text-primary-foreground"><ArrowLeft className="size-7" /></Button>
@@ -187,6 +188,26 @@ function NightApp() {
           </form>
         </div>
       )}
+
+      {screen === "chat" && showCoffee && (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-night/90 px-6" role="dialog" aria-modal="true" aria-labelledby="coffee-title">
+          <div className="relative w-full max-w-sm rounded-lg bg-paper p-6 text-ink shadow-2xl">
+            <Button aria-label="Cerrar" onClick={() => setShowCoffee(false)} size="icon" variant="ghost" className="absolute right-2 top-2 text-ink hover:bg-water/20"><X className="size-5" /></Button>
+            <Coffee className="mx-auto size-10 text-night-soft" aria-hidden="true" />
+            <h2 id="coffee-title" className="mt-3 text-center text-2xl font-bold">Invita un cafecito</h2>
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              {[100, 200, 300].map((amount) => <Button key={amount} onClick={thankForCoffee} className="h-12 bg-night-soft text-primary-foreground hover:bg-night">{amount}</Button>)}
+            </div>
+            <form className="mt-4" onSubmit={(event) => { event.preventDefault(); if (Number(otherAmount) > 0) thankForCoffee(); }}>
+              <label className="block text-sm font-semibold" htmlFor="other-amount">Otro monto</label>
+              <div className="mt-2 flex gap-2">
+                <input id="other-amount" inputMode="decimal" min="1" type="number" value={otherAmount} onChange={(event) => setOtherAmount(event.target.value)} placeholder="Agregar otro valor" className="h-12 min-w-0 flex-1 rounded-md border border-input bg-background px-4 text-foreground outline-none focus:ring-2 focus:ring-water" />
+                <Button disabled={Number(otherAmount) <= 0} type="submit" className="h-12 bg-mint text-ink hover:bg-mint/90">Enviar</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -202,12 +223,11 @@ function ImageScreen({ src, alt, portrait = false, children }: { src: string; al
   );
 }
 
-function CoffeeButton({ onCopy }: { onCopy: () => void }) {
-  const [copied, setCopied] = useState(false);
+function CoffeeButton({ onOpen }: { onOpen: () => void }) {
   return (
-    <Button onClick={() => { void onCopy(); setCopied(true); window.setTimeout(() => setCopied(false), 2200); }} className="absolute right-2 top-2 z-30 h-8 gap-1.5 rounded-full bg-paper/95 px-3 text-xs text-ink shadow-lg hover:bg-paper" title="Copiar datos del cafecito">
-      {copied ? <Check className="size-3.5" /> : <Coffee className="size-3.5" />}
-      {copied ? "Copiado" : "❤️ Invita un cafecito"}
+    <Button onClick={onOpen} className="absolute right-2 top-2 z-30 h-8 gap-1.5 rounded-full bg-paper/95 px-3 text-xs text-ink shadow-lg hover:bg-paper" title="Invita un cafecito">
+      <Coffee className="size-3.5" />
+      ❤️ Invita un cafecito
     </Button>
   );
 }
