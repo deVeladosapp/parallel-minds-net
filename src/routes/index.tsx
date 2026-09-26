@@ -1,16 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Coffee, Send, X } from "lucide-react";
+import { ArrowLeft, Coffee, Copy, Send } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { Conversation, ConversationContent, ConversationEmptyState } from "@/components/ai-elements/conversation";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
 import { SALAS, SeleccionSalas } from "@/components/SeleccionSalas";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import logoAsset from "@/assets/logo.jpg.asset.json";
 import coverAsset from "@/assets/portada.jpg.asset.json";
+import qrAsset from "@/assets/qr-pago-movil.png.asset.json";
 
 type Screen = "cover" | "map" | "rooms" | "chat";
 type ChatMessage = Tables<"messages">;
@@ -42,6 +45,8 @@ function NightApp() {
   const [notice, setNotice] = useState<string | null>(null);
   const [showCoffee, setShowCoffee] = useState(false);
   const [otherAmount, setOtherAmount] = useState("");
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [savingTip, setSavingTip] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
@@ -209,11 +214,42 @@ function NightApp() {
     }
   };
 
-  const thankForCoffee = () => {
+  const closeCoffee = () => {
+    if (savingTip) return;
     setShowCoffee(false);
+    setSelectedAmount(null);
     setOtherAmount("");
-    setNotice("¡Gracias por tu cafecito! ☕❤️");
-    window.setTimeout(() => setNotice(null), 2600);
+  };
+
+  const chooseAmount = (amount: number) => {
+    if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) return;
+    setSelectedAmount(amount);
+  };
+
+  const copyValue = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast("¡Copiado!");
+    } catch {
+      toast.error("No se pudo copiar. Intenta de nuevo.");
+    }
+  };
+
+  const confirmTip = async () => {
+    if (selectedAmount === null || !authId || savingTip) return;
+    setSavingTip(true);
+    try {
+      const { error } = await supabase.from("propinas").insert({ user_id: authId, monto: selectedAmount });
+      if (error) throw error;
+      setShowCoffee(false);
+      setSelectedAmount(null);
+      setOtherAmount("");
+      toast("¡Gracias por el cafecito! ❤️ Tu apoyo significa mucho");
+    } catch {
+      toast.error("No pudimos registrar tu apoyo. Intenta de nuevo.");
+    } finally {
+      setSavingTip(false);
+    }
   };
 
   return (
@@ -287,24 +323,58 @@ function NightApp() {
         </div>
       )}
 
-      {screen === "chat" && showCoffee && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-night/90 px-6" role="dialog" aria-modal="true" aria-labelledby="coffee-title">
-          <div className="relative w-full max-w-sm rounded-lg bg-paper p-6 text-ink shadow-2xl">
-            <Button aria-label="Cerrar" onClick={() => setShowCoffee(false)} size="icon" variant="ghost" className="absolute right-2 top-2 text-ink hover:bg-water/20"><X className="size-5" /></Button>
-            <Coffee className="mx-auto size-10 text-night-soft" aria-hidden="true" />
-            <h2 id="coffee-title" className="mt-3 text-center text-2xl font-bold">Invita un cafecito</h2>
-            <div className="mt-6 grid grid-cols-3 gap-3">
-              {[100, 200, 300].map((amount) => <Button key={amount} onClick={thankForCoffee} className="h-12 bg-night-soft text-primary-foreground hover:bg-night">{amount}</Button>)}
-            </div>
-            <form className="mt-4" onSubmit={(event) => { event.preventDefault(); if (Number(otherAmount) > 0) thankForCoffee(); }}>
-              <label className="block text-sm font-semibold" htmlFor="other-amount">Otro monto</label>
-              <div className="mt-2 flex gap-2">
-                <input id="other-amount" inputMode="decimal" min="1" type="number" value={otherAmount} onChange={(event) => setOtherAmount(event.target.value)} placeholder="Agregar otro valor" className="h-12 min-w-0 flex-1 rounded-md border border-input bg-background px-4 text-foreground outline-none focus:ring-2 focus:ring-water" />
-                <Button disabled={Number(otherAmount) <= 0} type="submit" className="h-12 bg-mint text-ink hover:bg-mint/90">Enviar</Button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {screen === "chat" && (
+        <Dialog open={showCoffee} onOpenChange={(open) => { if (!open) closeCoffee(); }}>
+          <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-sm gap-0 overflow-y-auto rounded-lg border-border bg-paper p-5 text-ink shadow-2xl sm:p-6 [&>button]:text-ink [&>button>span]:hidden [&>button]:after:content-['Cerrar'] [&>button]:after:sr-only">
+            {selectedAmount === null ? (
+              <>
+                <Coffee className="mx-auto size-9 text-night-soft" aria-hidden="true" />
+                <DialogHeader className="mt-3 text-center sm:text-center">
+                  <DialogTitle className="text-2xl">Invita un cafecito</DialogTitle>
+                  <DialogDescription>Elige el monto que deseas enviar.</DialogDescription>
+                </DialogHeader>
+                <div className="mt-6 grid grid-cols-3 gap-2">
+                  {[100, 200, 300].map((amount) => <Button key={amount} onClick={() => chooseAmount(amount)} className="h-12 bg-night-soft text-primary-foreground hover:bg-night">{amount}</Button>)}
+                </div>
+                <form className="mt-5" onSubmit={(event) => { event.preventDefault(); chooseAmount(Number(otherAmount)); }}>
+                  <label className="block text-sm font-semibold" htmlFor="other-amount">Otro monto</label>
+                  <div className="mt-2 flex gap-2">
+                    <input id="other-amount" inputMode="decimal" min="0.01" step="0.01" type="number" value={otherAmount} onChange={(event) => setOtherAmount(event.target.value)} placeholder="Agregar otro valor" className="h-12 min-w-0 flex-1 rounded-md border border-input bg-background px-4 text-foreground outline-none focus:ring-2 focus:ring-water" />
+                    <Button disabled={!Number.isFinite(Number(otherAmount)) || Number(otherAmount) <= 0} type="submit" className="h-12 bg-mint text-ink hover:bg-mint/90">Continuar</Button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <DialogHeader className="pr-5 text-center sm:text-center">
+                  <DialogTitle className="text-2xl leading-tight">¡Gracias por el cafecito! ☕</DialogTitle>
+                  <DialogDescription className="pt-1 text-base">Para enviar Bs {selectedAmount}</DialogDescription>
+                </DialogHeader>
+                <div className="mt-5 space-y-2">
+                  {([
+                    { label: "Banco", display: "BNC (0191)", copy: "0191" },
+                    { label: "Teléfono", display: "04164531216", copy: "04164531216" },
+                    { label: "Cédula", display: "V26049337", copy: "26049337" },
+                    { label: "Monto", display: `Bs ${selectedAmount}`, copy: String(selectedAmount) },
+                  ]).map((row) => (
+                    <div key={row.label} className="flex min-h-12 items-center gap-2 rounded-md border border-border bg-secondary/60 px-3 py-1.5">
+                      <span className="min-w-0 flex-1 text-sm text-muted-foreground">{row.label}</span>
+                      <span className="text-right text-sm font-semibold tabular-nums text-ink">{row.display}</span>
+                      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Copiar ${row.label.toLowerCase()}`} title={`Copiar ${row.label.toLowerCase()}`} onClick={() => void copyValue(row.copy)} className="ml-1 shrink-0 text-night-soft hover:bg-water/20 hover:text-ink"><Copy aria-hidden="true" /></Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /><span>O escanea directo</span><span className="h-px flex-1 bg-border" /></div>
+                <img src={qrAsset.url} alt="Código QR de pago móvil" width={220} height={220} className="mx-auto mt-3 size-[min(220px,52dvh)] rounded-md border-4 border-paper object-contain ring-1 ring-border" />
+                <p className="mt-3 text-center text-sm text-muted-foreground">Gracias por el cafecito ❤️</p>
+                <div className="mt-5 flex flex-col gap-2">
+                  <Button type="button" variant="outline" onClick={() => void copyValue(`BNC (0191) - 04164531216 - V26049337 - Bs ${selectedAmount}`)} className="h-11 w-full border-border text-ink"><Copy aria-hidden="true" />Copiar todos los datos</Button>
+                  <Button type="button" disabled={savingTip} onClick={() => void confirmTip()} className="h-12 w-full bg-night-soft text-primary-foreground hover:bg-night">{savingTip ? "Guardando..." : "Ya apoyé ☕"}</Button>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       )}
     </main>
   );
