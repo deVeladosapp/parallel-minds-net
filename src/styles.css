@@ -175,3 +175,17 @@
 [data-lovable-badge] {
   display: none !important;
 }
+
+/* Fondos: splash, portada lluvia, salas y chat con luna */
+.pantalla-splash{background:url('/splash-aritos.jpg') center/cover no-repeat;width:100vw;height:100vh;position:fixed;inset:0;z-index:9999}
+.pantalla-portada{background:url('/portada-lluvia.jpg') center/cover no-repeat;position:relative;overflow:hidden;width:100vw;height:100dvh}
+.pantalla-portada::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at top center,rgba(180,210,255,.85) 0%,rgba(100,140,190,.35) 40%,transparent 70%);opacity:0;z-index:2;pointer-events:none;animation:trueno 3s infinite}
+@keyframes trueno{0%,85%,100%{opacity:0}87%{opacity:1}88%{opacity:0}89%{opacity:.7}90%{opacity:0}}
+.pantalla-salas,.pantalla-chat{background:url('/fondo-luna.jpg') center top/cover no-repeat fixed;position:relative}
+.pantalla-salas::after,.pantalla-chat::after{content:"";position:fixed;inset:0;background:radial-gradient(ellipse at center top,rgba(200,220,255,.45) 0%,transparent 65%);z-index:0;pointer-events:none;animation:luna-respira 4s infinite ease-in-out}
+@keyframes luna-respira{0%,100%{opacity:.15}50%{opacity:.65}}
+.pantalla-chat{max-width:none}
+.pantalla-chat>*,.contenido-salas,.tarjeta-entrada{position:relative;z-index:5}
+.pantalla-chat>.absolute{position:absolute}
+.boton-sala{background:rgba(255,255,255,.13)!important;backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.28)!important;border-radius:14px!important;color:white!important;box-shadow:0 4px 18px rgba(0,0,0,.2)!important}
+.boton-sala:hover{background:rgba(255,255,255,.22)!important;border-color:rgba(255,255,255,.4)!important}

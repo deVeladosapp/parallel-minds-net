@@ -251,14 +251,21 @@ function NightApp() {
     }
   };
 
+  const [splash, setSplash] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setSplash(false), 1400); return () => clearTimeout(t); }, []);
+
   return (
     <main className="watercolor-surface relative min-h-dvh overflow-hidden bg-night text-primary-foreground">
       {notice && <div role="status" className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-md bg-paper px-4 py-2 text-sm font-semibold text-ink shadow-lg">{notice}</div>}
 
+      {splash && <div className="pantalla-splash" aria-hidden="true" />}
+
       {screen === "cover" && (
-        <ImageScreen src={coverAsset.url} alt="Dos personas sentadas espalda con espalda bajo el título Estamos en la misma">
-          <Button aria-label="Entrar" onClick={enter} variant="ghost" className="absolute bottom-[1.5%] left-[36.5%] h-[9.5%] w-[27%] bg-transparent hover:bg-transparent" />
-        </ImageScreen>
+        <div className="pantalla-portada">
+          <div className="tarjeta-entrada h-full w-full">
+            <Button aria-label="Entrar" onClick={enter} variant="ghost" className="absolute bottom-[10.5%] left-[33%] h-[5%] w-[34%] rounded-full bg-transparent hover:bg-transparent" />
+          </div>
+        </div>
       )}
 
       {screen === "map" && (
@@ -273,7 +280,7 @@ function NightApp() {
       )}
 
       {screen === "chat" && activeRoom && (
-        <section className="relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8">
+        <section className="pantalla-chat relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8">
           <CoffeeButton onOpen={() => setShowCoffee(true)} />
           <h1 className="mb-6 text-center text-2xl font-normal text-primary-foreground sm:text-3xl">Estamos en la misma</h1>
           <div className="mb-5 flex min-h-20 items-center gap-3 rounded-[2rem] bg-night-soft px-4 shadow-xl">
@@ -312,7 +319,7 @@ function NightApp() {
       {showNickname && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-night/90 px-6">
           <form onSubmit={saveNickname} className="w-full max-w-sm rounded-lg bg-paper p-6 text-ink shadow-2xl">
-            <img src={logoAsset.url} alt="Logo de Estamos en la misma" className="mx-auto mb-4 size-24 rounded-md object-cover" />
+            <img src="/splash-aritos.jpg" alt="Logo de Estamos en la misma" className="mx-auto mb-4 size-24 rounded-md object-cover" />
             <h2 className="text-center text-2xl font-bold">¿Cómo quieres que te llamemos?</h2>
             <p className="mt-2 text-center text-sm text-muted-foreground">Tu apodo será visible en el chat.</p>
             <label className="mt-5 block text-sm font-semibold" htmlFor="nickname">Apodo</label>
