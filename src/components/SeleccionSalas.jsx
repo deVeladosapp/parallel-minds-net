@@ -15,8 +15,8 @@ export const SALAS = [
 
 export function SeleccionSalas({ counts, enteringTema, onBack, onSelect }) {
   return (
-    <section className="watercolor-surface relative h-dvh overflow-y-auto px-5 pb-10 pt-7 text-primary-foreground sm:px-8">
-      <div className="mx-auto w-full max-w-xl">
+    <section className="pantalla-salas relative h-dvh overflow-y-auto px-5 pb-10 pt-7 text-primary-foreground sm:px-8">
+      <div className="contenido-salas mx-auto w-full max-w-xl">
         <Button
           aria-label="Volver al mapa"
           className="mb-5 rounded-full text-primary-foreground hover:bg-water/20 hover:text-primary-foreground"
@@ -34,7 +34,7 @@ export function SeleccionSalas({ counts, enteringTema, onBack, onSelect }) {
             const count = counts[sala.tema] ?? 0;
             return (
               <Button
-                className="h-auto min-h-24 w-full justify-start rounded-lg border border-water/35 bg-night-soft/85 px-5 py-4 text-left text-primary-foreground shadow-lg hover:bg-night-soft"
+                className="boton-sala h-auto min-h-24 w-full justify-start rounded-lg border border-water/35 bg-night-soft/85 px-5 py-4 text-left text-primary-foreground shadow-lg hover:bg-night-soft"
                 disabled={Boolean(enteringTema)}
                 key={sala.tema}
                 onClick={() => onSelect(sala)}
