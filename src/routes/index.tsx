@@ -13,7 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import logoAsset from "@/assets/logo.jpg.asset.json";
 import coverAsset from "@/assets/portada.jpg.asset.json";
-import qrAsset from "@/assets/qr-pago-movil.png.asset.json";
 
 type Screen = "cover" | "map" | "rooms" | "chat";
 type ChatMessage = Tables<"messages">;
@@ -365,7 +364,7 @@ function NightApp() {
                   ))}
                 </div>
                 <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /><span>O escanea directo</span><span className="h-px flex-1 bg-border" /></div>
-                <img src={qrAsset.url} alt="Código QR de pago móvil" width={220} height={220} className="mx-auto mt-3 size-[min(220px,52dvh)] rounded-md border-4 border-paper object-contain ring-1 ring-border" />
+                <img src="/qr-pago-movil.png" alt="Código QR de pago móvil" width={220} height={220} className="mx-auto mt-3 size-[min(220px,52dvh)] rounded-md border-4 border-paper object-contain ring-1 ring-border" />
                 <p className="mt-3 text-center text-sm text-muted-foreground">Gracias por el cafecito ❤️</p>
                 <div className="mt-5 flex flex-col gap-2">
                   <Button type="button" variant="outline" onClick={() => void copyValue(`BNC (0191) - 04164531216 - V26049337 - Bs ${selectedAmount}`)} className="h-11 w-full border-border text-ink"><Copy aria-hidden="true" />Copiar todos los datos</Button>
