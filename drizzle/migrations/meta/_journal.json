@@ -15,6 +15,13 @@
       "when": 1790312283455,
       "tag": "0001_add_chat_rooms_and_presence",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790383313104,
+      "tag": "0002_create_propinas",
+      "breakpoints": true
     }
   ]
 }
