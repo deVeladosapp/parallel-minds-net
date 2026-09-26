@@ -13,3 +13,4 @@
 - [x] Mostrar presencia activa por sala cada 30 segundos y en tiempo real
 - [x] Filtrar mensajes y cabecera según la sala elegida
 - [x] Usar la nueva imagen de Venezuela como entrada a salas
+- [x] Cafecito con QR, copiado individual y confirmación de propinas

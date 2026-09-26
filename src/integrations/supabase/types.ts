@@ -105,6 +105,27 @@ export type Database = {
         }
         Relationships: []
       }
+      propinas: {
+        Row: {
+          fecha: string
+          id: string
+          monto: number
+          user_id: string
+        }
+        Insert: {
+          fecha?: string
+          id?: string
+          monto: number
+          user_id: string
+        }
+        Update: {
+          fecha?: string
+          id?: string
+          monto?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       rooms: {
         Row: {
           created_at: string
