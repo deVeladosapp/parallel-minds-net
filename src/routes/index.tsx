@@ -45,7 +45,7 @@ function NightApp() {
   const [notice, setNotice] = useState<string | null>(null);
   const [showCoffee, setShowCoffee] = useState(false);
   const [otherAmount, setOtherAmount] = useState("");
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [selectedAmount, setSelectedAmount] = useState<string | null>(null);
   const [savingTip, setSavingTip] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
@@ -221,8 +221,8 @@ function NightApp() {
     setOtherAmount("");
   };
 
-  const chooseAmount = (amount: number) => {
-    if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) return;
+  const chooseAmount = (amount: string) => {
+    if (!/^\d+(?:\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || Number(amount) > 9999999999.99) return;
     setSelectedAmount(amount);
   };
 
@@ -239,7 +239,7 @@ function NightApp() {
     if (selectedAmount === null || !authId || savingTip) return;
     setSavingTip(true);
     try {
-      const { error } = await supabase.from("propinas").insert({ user_id: authId, monto: selectedAmount });
+      const { error } = await supabase.from("propinas").insert({ user_id: authId, monto: Number(selectedAmount) });
       if (error) throw error;
       setShowCoffee(false);
       setSelectedAmount(null);
@@ -334,9 +334,9 @@ function NightApp() {
                   <DialogDescription>Elige el monto que deseas enviar.</DialogDescription>
                 </DialogHeader>
                 <div className="mt-6 grid grid-cols-3 gap-2">
-                  {[100, 200, 300].map((amount) => <Button key={amount} onClick={() => chooseAmount(amount)} className="h-12 bg-night-soft text-primary-foreground hover:bg-night">{amount}</Button>)}
+                  {[100, 200, 300].map((amount) => <Button key={amount} onClick={() => chooseAmount(String(amount))} className="h-12 bg-night-soft text-primary-foreground hover:bg-night">{amount}</Button>)}
                 </div>
-                <form className="mt-5" onSubmit={(event) => { event.preventDefault(); chooseAmount(Number(otherAmount)); }}>
+                <form className="mt-5" onSubmit={(event) => { event.preventDefault(); chooseAmount(otherAmount); }}>
                   <label className="block text-sm font-semibold" htmlFor="other-amount">Otro monto</label>
                   <div className="mt-2 flex gap-2">
                     <input id="other-amount" inputMode="decimal" min="0.01" step="0.01" type="number" value={otherAmount} onChange={(event) => setOtherAmount(event.target.value)} placeholder="Agregar otro valor" className="h-12 min-w-0 flex-1 rounded-md border border-input bg-background px-4 text-foreground outline-none focus:ring-2 focus:ring-water" />
