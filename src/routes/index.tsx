@@ -31,6 +31,16 @@ const FUENTES = [
   { nombre: "Gótica", valor: "'UnifrakturMaguntia', cursive" },
   { nombre: "Graffiti", valor: "'Permanent Marker', cursive" },
   { nombre: "Bonita", valor: "'Dancing Script', cursive" },
+  { nombre: "Gruesa", valor: "'Bebas Neue', sans-serif" },
+  { nombre: "Cartel", valor: "'Anton', sans-serif" },
+  { nombre: "Burbuja", valor: "'Lobster', cursive" },
+  { nombre: "Manuscrita", valor: "'Caveat', cursive" },
+  { nombre: "Gordita", valor: "'Pacifico', cursive" },
+  { nombre: "Futurista", valor: "'Orbitron', sans-serif" },
+  { nombre: "Game", valor: "'Press Start 2P', cursive" },
+  { nombre: "Terror", valor: "'Creepster', cursive" },
+  { nombre: "Nota Loca", valor: "'Indie Flower', cursive" },
+  { nombre: "Neón", valor: "'Monoton', cursive" },
 ];
 
 export const Route = createFileRoute("/")({
@@ -360,9 +370,9 @@ function NightApp() {
                   <button key={c} type="button" aria-label={`Color ${c}`} onClick={() => updatePinta({ color: c })} style={{ backgroundColor: c }} className={`size-9 rounded-full border-2 ${pinta.color === c ? "border-ring ring-2 ring-ring" : "border-border"}`} />
                 ))}
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="mt-2 grid max-h-56 grid-cols-2 gap-2 overflow-y-auto pr-1">
                 {FUENTES.map((f) => (
-                  <button key={f.nombre} type="button" onClick={() => updatePinta({ fuente: f.valor })} style={{ fontFamily: f.valor }} className={`h-11 rounded-lg border text-lg ${pinta.fuente === f.valor ? "border-ring bg-secondary" : "border-border"}`}>{f.nombre}</button>
+                  <button key={f.nombre} type="button" onClick={() => updatePinta({ fuente: f.valor })} style={{ fontFamily: f.valor }} className={`flex h-11 items-center justify-center truncate rounded-lg border px-2 text-base ${pinta.fuente === f.valor ? "border-ring bg-secondary" : "border-border"}`}>{f.nombre}</button>
                 ))}
               </div>
               <p className="mt-2 rounded-lg bg-paper p-3 text-center text-lg text-ink" style={{ color: pinta.color || undefined, fontFamily: pinta.fuente }}>Así se verán tus mensajes</p>
