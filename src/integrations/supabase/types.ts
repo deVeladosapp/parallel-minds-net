@@ -17,7 +17,9 @@ export type Database = {
       messages: {
         Row: {
           body: string
+          color: string | null
           created_at: string
+          fuente: string | null
           id: string
           nickname: string
           room_id: string | null
@@ -26,7 +28,9 @@ export type Database = {
         }
         Insert: {
           body: string
+          color?: string | null
           created_at?: string
+          fuente?: string | null
           id?: string
           nickname: string
           room_id?: string | null
@@ -35,7 +39,9 @@ export type Database = {
         }
         Update: {
           body?: string
+          color?: string | null
           created_at?: string
+          fuente?: string | null
           id?: string
           nickname?: string
           room_id?: string | null
