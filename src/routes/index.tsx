@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import logoAsset from "@/assets/logo.jpg.asset.json";
 import coverAsset from "@/assets/portada.jpg.asset.json";
 
 type Screen = "cover" | "map" | "rooms" | "chat";
