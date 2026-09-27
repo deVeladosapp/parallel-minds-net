@@ -1,0 +1,1 @@
+ALTER TABLE public.messages ADD COLUMN color text, ADD COLUMN fuente text;

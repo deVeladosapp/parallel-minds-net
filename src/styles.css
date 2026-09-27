@@ -189,3 +189,6 @@
 .pantalla-chat>.absolute{position:absolute}
 .boton-sala{background:rgba(255,255,255,.13)!important;backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.28)!important;border-radius:14px!important;color:white!important;box-shadow:0 4px 18px rgba(0,0,0,.2)!important}
 .boton-sala:hover{background:rgba(255,255,255,.22)!important;border-color:rgba(255,255,255,.4)!important}
+
+/* Ocultar marca de Lovable */
+#lovable-badge, [class*="lovable-badge"], a[href*="lovable.dev"], iframe[src*="lovable"]{display:none!important;opacity:0!important;pointer-events:none!important;}
