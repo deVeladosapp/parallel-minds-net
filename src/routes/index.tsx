@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Coffee, Copy, Send } from "lucide-react";
+import { ArrowLeft, Coffee, Copy, Palette, Send } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,6 +18,21 @@ type Screen = "cover" | "map" | "rooms" | "chat";
 type ChatMessage = Tables<"messages">;
 type Room = Tables<"rooms">;
 type SalaChoice = (typeof SALAS)[number];
+
+const COLORES = [
+  "#FF1493", "#FF00FF", "#9400D3", "#8A2BE2",
+  "#000000", "#FF0000", "#0000FF", "#00FF00",
+  "#FFD700", "#00CED1", "#FF8C00", "#FFFF00",
+  "#FFFFFF", "#808080", "#000080", "#228B22",
+  "#FF69B4", "#00FF7F", "#FF4500", "#1E90FF",
+  "#8B0000", "#4B0082", "#2F4F4F", "#ADFF2F",
+];
+const FUENTES = [
+  { nombre: "Normal", valor: "Arial, sans-serif" },
+  { nombre: "Gótica", valor: "'UnifrakturMaguntia', cursive" },
+  { nombre: "Graffiti", valor: "'Permanent Marker', cursive" },
+  { nombre: "Bonita", valor: "'Dancing Script', cursive" },
+];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -50,6 +65,24 @@ function NightApp() {
   const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [enteringTema, setEnteringTema] = useState<string | null>(null);
+  const [pinta, setPinta] = useState<{ color: string; fuente: string }>({ color: "", fuente: FUENTES[0].valor });
+  const [showPinta, setShowPinta] = useState(false);
+  const pintaKey = `miPinta_${authId ?? "anon"}`;
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(pintaKey);
+      if (saved) setPinta(JSON.parse(saved));
+    } catch { /* ignore */ }
+  }, [pintaKey]);
+
+  const updatePinta = (next: Partial<{ color: string; fuente: string }>) => {
+    setPinta((current) => {
+      const merged = { ...current, ...next };
+      window.localStorage.setItem(pintaKey, JSON.stringify(merged));
+      return merged;
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -173,7 +206,7 @@ function NightApp() {
   const sendMessage = async ({ text }: { text: string }) => {
     const body = text.trim();
     if (!body || !authId || !nickname || !activeRoom) return;
-    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id });
+    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente });
     if (error) setNotice("Tu mensaje no pudo enviarse. Intenta de nuevo.");
   };
 
@@ -282,6 +315,10 @@ function NightApp() {
       {screen === "chat" && activeRoom && (
         <section className="pantalla-chat relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8">
           <CoffeeButton onOpen={() => setShowCoffee(true)} />
+          <button type="button" onClick={() => setShowPinta(true)} className="absolute left-2 top-2 z-20 flex h-8 items-center gap-1.5 rounded-full bg-paper/95 px-3 text-xs font-semibold text-ink shadow-md">
+            <Palette className="size-3.5" /> Mi pinta
+          </button>
+          <img src="/splash-aritos.jpg" alt="Logo de Estamos en la misma" className="mx-auto mb-2 size-12 rounded-full object-cover shadow-lg" />
           <h1 className="mb-6 text-center text-2xl font-normal text-primary-foreground sm:text-3xl">Estamos en la misma</h1>
           <div className="mb-5 flex min-h-20 items-center gap-3 rounded-[2rem] bg-night-soft px-4 shadow-xl">
              <Button aria-label="Volver a las salas" onClick={() => setScreen("rooms")} size="icon" variant="ghost" className="shrink-0 rounded-full text-primary-foreground hover:bg-water/20 hover:text-primary-foreground"><ArrowLeft className="size-7" /></Button>
@@ -298,7 +335,7 @@ function NightApp() {
                   <MessageContent className="w-full rounded-[1.7rem] bg-paper px-5 py-4 text-ink shadow-lg">
                     <div className="mb-2 font-bold">{message.nickname}</div>
                     <div className="flex items-end gap-3">
-                      <p className="min-w-0 flex-1 text-lg leading-snug sm:text-xl">{message.body}</p>
+                      <p className="min-w-0 flex-1 break-words text-lg leading-snug sm:text-xl" style={{ color: message.color || undefined, fontFamily: message.fuente || undefined }}>{message.body}</p>
                       <time className="shrink-0 text-sm text-muted-foreground">{new Date(message.created_at).toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" })}</time>
                     </div>
                   </MessageContent>
@@ -313,6 +350,25 @@ function NightApp() {
               <PromptInputSubmit aria-label="Enviar mensaje" className="size-12 rounded-full bg-mint text-ink hover:bg-mint/90"><Send className="size-6" /></PromptInputSubmit>
             </PromptInputFooter>
           </PromptInput>
+          <Dialog open={showPinta} onOpenChange={setShowPinta}>
+            <DialogContent className="max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle>Mi pinta</DialogTitle>
+                <DialogDescription>Elige el color y la letra de tus mensajes.</DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-6 gap-3">
+                {COLORES.map((c) => (
+                  <button key={c} type="button" aria-label={`Color ${c}`} onClick={() => updatePinta({ color: c })} style={{ backgroundColor: c }} className={`size-9 rounded-full border-2 ${pinta.color === c ? "border-ring ring-2 ring-ring" : "border-border"}`} />
+                ))}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {FUENTES.map((f) => (
+                  <button key={f.nombre} type="button" onClick={() => updatePinta({ fuente: f.valor })} style={{ fontFamily: f.valor }} className={`h-11 rounded-lg border text-lg ${pinta.fuente === f.valor ? "border-ring bg-secondary" : "border-border"}`}>{f.nombre}</button>
+                ))}
+              </div>
+              <p className="mt-2 rounded-lg bg-paper p-3 text-center text-lg text-ink" style={{ color: pinta.color || undefined, fontFamily: pinta.fuente }}>Así se verán tus mensajes</p>
+            </DialogContent>
+          </Dialog>
         </section>
       )}
 
