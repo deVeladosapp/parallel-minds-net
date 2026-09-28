@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,16 @@ export function SeleccionSalas({ counts, enteringTema, onBack, onSelect }) {
           <ArrowLeft className="size-6" />
         </Button>
         <h1 className="text-center text-3xl font-bold leading-tight">¿Por qué estás desvelado?</h1>
-        <p className="mb-7 mt-2 text-center text-lg text-primary-foreground/75">Elige tu sala:</p>
+        <p className="mb-5 mt-2 text-center text-lg text-primary-foreground/75">Elige tu sala:</p>
+        <div className="mb-6 flex justify-center">
+          <Link
+            to="/salas-vip"
+            className="rounded-full px-6 py-2.5 font-bold tracking-wide"
+            style={{ border: "2px solid #FFD700", background: "rgba(255,255,255,0.05)", color: "#FFD700" }}
+          >
+            VER SALAS PREMIUM
+          </Link>
+        </div>
 
         <div className="grid gap-3">
           {SALAS.map((sala) => {
