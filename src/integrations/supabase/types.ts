@@ -135,33 +135,21 @@ export type Database = {
       rooms: {
         Row: {
           created_at: string
-          es_vacante: boolean
-          es_vip: boolean
-          fundador_id: string | null
           id: string
-          max_personas: number | null
           subtitle: string
           tema: string
           title: string
         }
         Insert: {
           created_at?: string
-          es_vacante?: boolean
-          es_vip?: boolean
-          fundador_id?: string | null
           id?: string
-          max_personas?: number | null
           subtitle: string
           tema: string
           title: string
         }
         Update: {
           created_at?: string
-          es_vacante?: boolean
-          es_vip?: boolean
-          fundador_id?: string | null
           id?: string
-          max_personas?: number | null
           subtitle?: string
           tema?: string
           title?: string

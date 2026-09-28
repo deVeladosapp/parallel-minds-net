@@ -1,4 +1,4 @@
-import { ArrowLeft, Crown, Users } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +13,7 @@ export const SALAS = [
   { t: "💬 Hablar paja", s: "De cualquier vaina a esta hora", tema: "general" },
 ];
 
-export function SeleccionSalas({ counts, enteringTema, onBack, onSelect, onSelectVip }) {
+export function SeleccionSalas({ counts, enteringTema, onBack, onSelect }) {
   return (
     <section className="pantalla-salas relative h-dvh overflow-y-auto px-5 pb-10 pt-7 text-primary-foreground sm:px-8">
       <div className="contenido-salas mx-auto w-full max-w-xl">
@@ -51,42 +51,6 @@ export function SeleccionSalas({ counts, enteringTema, onBack, onSelect, onSelec
               </Button>
             );
           })}
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => document.getElementById("salas-vip")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          className="mt-7 h-16 w-full border-vip-gold bg-vip-surface text-lg font-bold text-vip-gold shadow-vip-glow hover:bg-vip-surface hover:text-vip-gold"
-        >
-          🔥 ENTRAR A SALAS VIP (6) 🔒
-        </Button>
-
-        <div id="salas-vip" className="mt-5 scroll-mt-5 rounded-lg border border-vip-gold bg-vip-surface p-3 shadow-vip-glow backdrop-blur-xl sm:p-5">
-          <Crown className="mx-auto mb-1 size-7 text-vip-gold" aria-hidden="true" />
-          <h2 className="mb-5 text-center font-serif text-2xl font-semibold text-vip-gold">SALAS VIP - Solo 50 personas</h2>
-          <div className="grid gap-3">
-            {Array.from({ length: 6 }, (_, index) => {
-              const number = index + 1;
-              return (
-                <Button
-                  key={number}
-                  type="button"
-                  variant="outline"
-                  onClick={() => onSelectVip(number)}
-                  className="h-auto min-h-24 w-full justify-start border-vip-gold bg-vip-surface px-5 py-4 text-left text-vip-gold shadow-vip-glow hover:bg-vip-surface hover:text-vip-gold"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block whitespace-normal text-lg font-bold leading-snug">🔒 SALA VACANTE {number}</span>
-                    <span className="mt-1 block whitespace-normal text-sm font-normal text-vip-gold/80">Sé fundador por 4 $ al mes</span>
-                  </span>
-                  <span className="ml-2 flex shrink-0 items-center gap-1 text-base font-bold">
-                    0/50 <Users className="size-5" aria-label="personas" />
-                  </span>
-                </Button>
-              );
-            })}
-          </div>
         </div>
       </div>
     </section>
