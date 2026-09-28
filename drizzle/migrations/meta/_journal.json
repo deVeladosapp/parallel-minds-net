@@ -36,6 +36,13 @@
       "when": 1790562602234,
       "tag": "0004_add_vip_room_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790562624184,
+      "tag": "0005_allow_six_vip_rooms",
+      "breakpoints": true
     }
   ]
 }
