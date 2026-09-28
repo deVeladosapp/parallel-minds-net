@@ -13,4 +13,5 @@ export function SeleccionSalas(props: {
   enteringTema: string | null;
   onBack: () => void;
   onSelect: (sala: SalaChoice) => void | Promise<void>;
+  onSelectVip: (number: number) => void | Promise<void>;
 }): ReactElement;

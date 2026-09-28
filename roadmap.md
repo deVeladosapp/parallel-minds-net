@@ -14,3 +14,6 @@
 - [x] Filtrar mensajes y cabecera según la sala elegida
 - [x] Usar la nueva imagen de Venezuela como entrada a salas
 - [x] Cafecito con QR, copiado individual y confirmación de propinas
+- [x] Añadir seis salas VIP vacantes debajo de las salas gratuitas sin alterar las existentes
+- [x] Abrir chat VIP vacío con formulario de fundador visual, sin cobro
+- [x] Verificar selección y vista VIP en móvil

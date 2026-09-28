@@ -1,0 +1,2 @@
+ALTER TABLE public.rooms DROP CONSTRAINT rooms_tema_check;
+ALTER TABLE public.rooms ADD CONSTRAINT rooms_tema_check CHECK (tema IN ('despecho', 'ansiedad', 'soledad', 'pensativo', 'luz', 'arrechera', 'joda', 'general', 'vip-1', 'vip-2', 'vip-3', 'vip-4', 'vip-5', 'vip-6'));
