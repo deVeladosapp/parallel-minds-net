@@ -29,6 +29,13 @@
       "when": 1790469260593,
       "tag": "0003_add_message_style",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790562602234,
+      "tag": "0004_add_vip_room_fields",
+      "breakpoints": true
     }
   ]
 }
