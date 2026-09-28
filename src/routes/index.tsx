@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import coverAsset from "@/assets/portada.jpg.asset.json";
 
-type Screen = "cover" | "map" | "rooms" | "chat";
+type Screen = "cover" | "map" | "rooms" | "chat" | "vip";
 type ChatMessage = Tables<"messages">;
 type Room = Tables<"rooms">;
 type SalaChoice = (typeof SALAS)[number];
@@ -73,6 +73,8 @@ function NightApp() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
+  const [vipRoom, setVipRoom] = useState<Room | null>(null);
+  const [showFounder, setShowFounder] = useState(false);
   const [enteringTema, setEnteringTema] = useState<string | null>(null);
   const [pinta, setPinta] = useState<{ color: string; fuente: string }>({ color: "", fuente: "Arial, sans-serif" });
   const [showPinta, setShowPinta] = useState(false);
@@ -255,6 +257,22 @@ function NightApp() {
     }
   };
 
+  const enterVipRoom = async (number: number) => {
+    const tema = `vip-${number}`;
+    let room = rooms.find((item) => item.tema === tema && item.es_vip);
+    if (!room) {
+      const { data } = await supabase.from("rooms").select("*").eq("tema", tema).eq("es_vip", true).maybeSingle();
+      room = data ?? undefined;
+    }
+    if (!room) {
+      toast.error("No pudimos abrir esta sala. Intenta otra vez.");
+      return;
+    }
+    setVipRoom(room);
+    setShowFounder(true);
+    setScreen("vip");
+  };
+
   const closeCoffee = () => {
     if (savingTip) return;
     setShowCoffee(false);
@@ -318,7 +336,38 @@ function NightApp() {
       )}
 
       {screen === "rooms" && (
-        <SeleccionSalas counts={roomCounts} enteringTema={enteringTema} onBack={() => setScreen("map")} onSelect={enterRoom} />
+        <SeleccionSalas counts={roomCounts} enteringTema={enteringTema} onBack={() => setScreen("map")} onSelect={enterRoom} onSelectVip={enterVipRoom} />
+      )}
+
+      {screen === "vip" && vipRoom && (
+        <section className="pantalla-chat relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8">
+          <img src="/splash-aritos.jpg" alt="Logo de Estamos en la misma" className="mx-auto mb-2 size-12 rounded-full object-cover shadow-lg" />
+          <h1 className="mb-6 text-center text-2xl font-normal text-primary-foreground sm:text-3xl">Estamos en la misma</h1>
+          <div className="mb-5 flex min-h-20 items-center gap-3 rounded-[2rem] border border-vip-gold bg-vip-surface px-4 shadow-vip-glow">
+            <Button aria-label="Volver a las salas" onClick={() => { setShowFounder(false); setVipRoom(null); setScreen("rooms"); }} size="icon" variant="ghost" className="shrink-0 rounded-full text-vip-gold hover:bg-vip-gold/10 hover:text-vip-gold"><ArrowLeft className="size-7" /></Button>
+            <h2 className="min-w-0 flex-1 text-base font-semibold text-vip-gold sm:text-lg">{vipRoom.title} - Lara</h2>
+            <span className="shrink-0 text-sm text-vip-gold">0/50</span>
+          </div>
+          <Conversation className="min-h-0 flex-1">
+            <ConversationContent className="px-1 py-2">
+              <ConversationEmptyState title="La noche está en silencio" description="Esta sala espera a su fundador." />
+            </ConversationContent>
+          </Conversation>
+          <div className="mt-4 flex min-h-16 items-center rounded-[2rem] border border-vip-gold/50 bg-vip-surface px-5 text-primary-foreground/55">Suelta lo que sientes...</div>
+          <Dialog open={showFounder} onOpenChange={setShowFounder}>
+            <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-lg border-vip-gold bg-night text-primary-foreground shadow-vip-glow">
+              <DialogHeader>
+                <DialogTitle className="text-center text-2xl text-vip-gold">👑 Sé Fundador por 4$ al mes</DialogTitle>
+                <DialogDescription className="text-center text-base text-primary-foreground/80">Ponle el nombre que tú quieras. Aquí SÍ puedes mandar audios y fotos</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-3 pt-2">
+                <input aria-label="Nombre de tu sala" maxLength={70} placeholder="Nombre de tu sala... Ej: Cachondas de BQTO 🔥" className="h-12 w-full rounded-md border border-vip-gold/50 bg-vip-surface px-3 text-primary-foreground placeholder:text-primary-foreground/60" />
+                <input aria-label="Describe tu sala" maxLength={140} placeholder="Describe tu sala... Ej: Solo chicas 18+" className="h-12 w-full rounded-md border border-vip-gold/50 bg-vip-surface px-3 text-primary-foreground placeholder:text-primary-foreground/60" />
+                <Button type="button" onClick={() => toast("El pago estará disponible próximamente.")} className="mt-2 min-h-12 w-full whitespace-normal bg-vip-gold text-night hover:bg-vip-gold/90">PAGAR 4$ Y SER FUNDADOR</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </section>
       )}
 
       {screen === "chat" && activeRoom && (
