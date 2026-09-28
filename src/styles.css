@@ -65,6 +65,9 @@
   --color-mint: var(--mint);
   --color-paper: var(--paper);
   --color-ink: var(--ink);
+  --color-vip-gold: var(--vip-gold);
+  --color-vip-surface: var(--vip-surface);
+  --shadow-vip-glow: 0 0 18px var(--vip-glow);
 }
 
 :root {
@@ -107,6 +110,9 @@
   --mint: oklch(0.76 0.12 178);
   --paper: oklch(0.99 0.005 250);
   --ink: oklch(0.25 0.07 252);
+  --vip-gold: oklch(0.82 0.11 83);
+  --vip-surface: oklch(0.08 0.015 260 / 72%);
+  --vip-glow: oklch(0.82 0.11 83 / 32%);
 }
 
 .dark {
