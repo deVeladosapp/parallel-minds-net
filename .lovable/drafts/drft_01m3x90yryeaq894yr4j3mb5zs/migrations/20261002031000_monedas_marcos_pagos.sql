@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS public.transacciones (
   estado text NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'aprobada', 'rechazada')),
   captura_path text,
   lectura_ia jsonb,
+  sala_tema text CHECK (sala_tema IS NULL OR sala_tema IN ('vip-1','vip-2','vip-3','vip-4','vip-5','vip-6')),
   nombre_sala text CHECK (nombre_sala IS NULL OR char_length(nombre_sala) <= 60),
   descripcion_sala text CHECK (descripcion_sala IS NULL OR char_length(descripcion_sala) <= 140),
   fecha timestamptz NOT NULL DEFAULT now(),
