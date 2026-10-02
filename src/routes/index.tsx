@@ -95,6 +95,7 @@ function NightApp() {
   const [marcoActivo, setMarcoActivo] = useState<number | null>(null);
   const [saldo, setSaldo] = useState(0);
   const [vipActivos, setVipActivos] = useState<number[]>([]);
+  const [showEditor, setShowEditor] = useState(false);
   const [tab, setTab] = useState<(typeof TABS)[number]>("Colores");
   const comprar = useServerFn(comprarMarco);
   const [rooms, setRooms] = useState<Room[]>([]);
