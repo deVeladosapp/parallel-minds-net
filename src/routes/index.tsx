@@ -102,7 +102,7 @@ function NightApp() {
   const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [enteringTema, setEnteringTema] = useState<string | null>(null);
-  const [pinta, setPinta] = useState<Pinta>({ color: "", fuente: "Arial, sans-serif", nube: NUBES[0].clase, fondo: "/fondo-luna.jpg" });
+  const [pinta, setPinta] = useState<Pinta>({ color: "", fuente: "Arial, sans-serif", nube: NUBES[0]!.clase, fondo: "/fondo-luna.jpg" });
   const [showPinta, setShowPinta] = useState(false);
   const pintaKey = `miPinta_${authId ?? "anon"}`;
 
