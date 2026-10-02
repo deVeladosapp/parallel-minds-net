@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Coffee, Copy, Palette, Send } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowLeft, Coffee, Palette, Send } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -7,16 +8,37 @@ import { Conversation, ConversationContent, ConversationEmptyState } from "@/com
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
 import { SALAS, SeleccionSalas } from "@/components/SeleccionSalas";
+import { AvatarMarco, MarcoGrid } from "@/components/AvatarMarco";
+import { CafecitoDialog } from "@/components/CafecitoDialog";
+import { AVATARES, MARCOS } from "@/lib/desvelados";
+import { comprarMarco } from "@/lib/pagos.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import coverAsset from "@/assets/portada.jpg.asset.json";
 
 type Screen = "cover" | "map" | "rooms" | "chat";
 type ChatMessage = Tables<"messages">;
 type Room = Tables<"rooms">;
 type SalaChoice = (typeof SALAS)[number];
+type Pinta = { color: string; fuente: string; nube: string; fondo: string };
+const db = supabase as any;
+
+const NUBES = [
+  { nombre: "Blanca", clase: "bg-paper text-ink" },
+  { nombre: "Noche", clase: "bg-night-soft text-primary-foreground" },
+  { nombre: "Menta", clase: "bg-mint text-ink" },
+  { nombre: "Dorada", clase: "bg-gold text-ink" },
+  { nombre: "Agua", clase: "bg-water text-ink" },
+  { nombre: "Vidrio", clase: "bg-paper/20 text-primary-foreground backdrop-blur" },
+];
+const FONDOS = [
+  { nombre: "Luna", valor: "/fondo-luna.jpg" },
+  { nombre: "Lluvia", valor: "/portada-lluvia.jpg" },
+  { nombre: "Venezuela", valor: "/venezuela-bg.png" },
+  { nombre: "Liso", valor: "" },
+];
+const TABS = ["Colores", "Fuentes", "Marcos", "Efectos", "Avatares", "Nube", "Fondo"] as const;
 
 const COLORES = [
   "#FF1493", "#FF00FF", "#9400D3", "#8A2BE2",
@@ -67,25 +89,30 @@ function NightApp() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [showCoffee, setShowCoffee] = useState(false);
-  const [otherAmount, setOtherAmount] = useState("");
-  const [selectedAmount, setSelectedAmount] = useState<string | null>(null);
-  const [savingTip, setSavingTip] = useState(false);
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [avatarDraft, setAvatarDraft] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [marcoActivo, setMarcoActivo] = useState<number | null>(null);
+  const [saldo, setSaldo] = useState(0);
+  const [vipActivos, setVipActivos] = useState<number[]>([]);
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Colores");
+  const comprar = useServerFn(comprarMarco);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [enteringTema, setEnteringTema] = useState<string | null>(null);
-  const [pinta, setPinta] = useState<{ color: string; fuente: string }>({ color: "", fuente: "Arial, sans-serif" });
+  const [pinta, setPinta] = useState<Pinta>({ color: "", fuente: "Arial, sans-serif", nube: NUBES[0].clase, fondo: "/fondo-luna.jpg" });
   const [showPinta, setShowPinta] = useState(false);
   const pintaKey = `miPinta_${authId ?? "anon"}`;
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(pintaKey);
-      if (saved) setPinta(JSON.parse(saved));
+      if (saved) setPinta((c) => ({ ...c, ...JSON.parse(saved) }));
     } catch { /* ignore */ }
   }, [pintaKey]);
 
-  const updatePinta = (next: Partial<{ color: string; fuente: string }>) => {
+  const updatePinta = (next: Partial<Pinta>) => {
     setPinta((current) => {
       const merged = { ...current, ...next };
       window.localStorage.setItem(pintaKey, JSON.stringify(merged));
@@ -98,15 +125,44 @@ function NightApp() {
     void supabase.auth.getUser().then(async ({ data }) => {
       if (!active || !data.user) return;
       setAuthId(data.user.id);
-      const { data: profile } = await supabase
+      const { data: profile } = await db
         .from("profiles")
-        .select("nickname")
+        .select("nickname,avatar_url,marco_activo")
         .eq("id", data.user.id)
         .maybeSingle();
-      if (active && profile?.nickname) setNickname(profile.nickname);
+      if (active && profile?.nickname) {
+        setNickname(profile.nickname);
+        setAvatar(profile.avatar_url ?? null);
+        setMarcoActivo(profile.marco_activo ?? null);
+      }
+      void refreshWallet(data.user.id);
     });
     return () => { active = false; };
   }, []);
+
+  const refreshWallet = async (uid: string) => {
+    const [{ data: w }, { data: owned }] = await Promise.all([
+      db.from("monedas").select("saldo").eq("user_id", uid).maybeSingle(),
+      db.from("marcos_usuario").select("marco_id").eq("user_id", uid).gt("expira", new Date().toISOString()),
+    ]);
+    setSaldo(w?.saldo ?? 0);
+    setVipActivos((owned ?? []).map((o: { marco_id: number }) => o.marco_id));
+  };
+
+  const pickMarco = async (id: number, limpio = false) => {
+    if (!authId) return;
+    const frame = MARCOS.find((m) => m.id === id);
+    if (frame?.vip && !limpio && !vipActivos.includes(id)) {
+      const res = await comprar({ data: { marcoId: id } });
+      if (!res.ok) { toast.error(res.error); return; }
+      setSaldo(res.saldo);
+      setVipActivos((v) => [...v, id]);
+      toast("¡Marco VIP activo por 1 día! ✨");
+    } else {
+      await db.from("profiles").update({ marco_activo: id }).eq("id", authId);
+    }
+    setMarcoActivo(id);
+  };
 
   const refreshRoomsAndCounts = useCallback(async () => {
     const [{ data: roomData }, { data: presenceData }] = await Promise.all([
@@ -199,8 +255,20 @@ function NightApp() {
         userId = data.user?.id ?? null;
       }
       if (!userId) throw new Error("No se pudo abrir la sesión.");
-      const { error } = await supabase.from("profiles").upsert({ id: userId, nickname: clean, state: "Lara", updated_at: new Date().toISOString() });
+      let avatarValue = avatarDraft ?? avatar;
+      if (avatarFile) {
+        const ext = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${userId}/${Date.now()}.${ext}`;
+        const { error: upError } = await supabase.storage.from("avatares").upload(path, avatarFile, { contentType: avatarFile.type, upsert: true });
+        if (upError) throw upError;
+        avatarValue = `storage:${path}`;
+      }
+      const pais = (navigator.language.split("-")[1] ?? "").toUpperCase() || null;
+      const { error } = await db.from("profiles").upsert({ id: userId, nickname: clean, state: "Lara", avatar_url: avatarValue, pais, updated_at: new Date().toISOString() });
       if (error) throw error;
+      setAvatar(avatarValue);
+      setAvatarFile(null);
+      window.localStorage.setItem("perfilDesvelado", JSON.stringify({ nombre: clean, avatar: avatarValue }));
       setAuthId(userId);
       setNickname(clean);
       setShowNickname(false);
@@ -215,7 +283,7 @@ function NightApp() {
   const sendMessage = async ({ text }: { text: string }) => {
     const body = text.trim();
     if (!body || !authId || !nickname || !activeRoom) return;
-    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente });
+    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente, avatar_url: avatar, marco: marcoActivo } as any);
     if (error) setNotice("Tu mensaje no pudo enviarse. Intenta de nuevo.");
   };
 
@@ -252,44 +320,6 @@ function NightApp() {
       setNotice("No pudimos abrir esta sala. Intenta otra vez.");
     } finally {
       setEnteringTema(null);
-    }
-  };
-
-  const closeCoffee = () => {
-    if (savingTip) return;
-    setShowCoffee(false);
-    setSelectedAmount(null);
-    setOtherAmount("");
-  };
-
-  const chooseAmount = (amount: string) => {
-    if (!/^\d+(?:\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || Number(amount) > 9999999999.99) return;
-    setSelectedAmount(amount);
-  };
-
-  const copyValue = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast("¡Copiado!");
-    } catch {
-      toast.error("No se pudo copiar. Intenta de nuevo.");
-    }
-  };
-
-  const confirmTip = async () => {
-    if (selectedAmount === null || !authId || savingTip) return;
-    setSavingTip(true);
-    try {
-      const { error } = await supabase.from("propinas").insert({ user_id: authId, monto: Number(selectedAmount) });
-      if (error) throw error;
-      setShowCoffee(false);
-      setSelectedAmount(null);
-      setOtherAmount("");
-      toast("¡Gracias por el cafecito! ❤️ Tu apoyo significa mucho");
-    } catch {
-      toast.error("No pudimos registrar tu apoyo. Intenta de nuevo.");
-    } finally {
-      setSavingTip(false);
     }
   };
 
