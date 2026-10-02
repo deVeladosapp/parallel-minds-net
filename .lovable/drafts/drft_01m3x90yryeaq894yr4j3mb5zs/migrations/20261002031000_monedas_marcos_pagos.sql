@@ -77,7 +77,7 @@ CREATE POLICY "Users read own frames" ON public.marcos_usuario FOR SELECT TO aut
 ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS vence timestamptz;
 
 -- Storage: fotos de perfil públicas, comprobantes privados
-CREATE POLICY "Avatares públicos" ON storage.objects FOR SELECT USING (bucket_id = 'avatares');
+CREATE POLICY "Avatares visibles para usuarios" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'avatares');
 CREATE POLICY "Subir mi avatar" ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'avatares' AND (storage.foldername(name))[1] = auth.uid()::text);
 CREATE POLICY "Subir mi comprobante" ON storage.objects FOR INSERT TO authenticated
