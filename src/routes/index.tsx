@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Coffee, Copy, Palette, Send } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowLeft, Coffee, Palette, Send } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -7,16 +8,37 @@ import { Conversation, ConversationContent, ConversationEmptyState } from "@/com
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from "@/components/ai-elements/prompt-input";
 import { SALAS, SeleccionSalas } from "@/components/SeleccionSalas";
+import { AvatarMarco, MarcoGrid } from "@/components/AvatarMarco";
+import { CafecitoDialog } from "@/components/CafecitoDialog";
+import { AVATARES, MARCOS } from "@/lib/desvelados";
+import { comprarMarco } from "@/lib/pagos.functions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import coverAsset from "@/assets/portada.jpg.asset.json";
 
 type Screen = "cover" | "map" | "rooms" | "chat";
 type ChatMessage = Tables<"messages">;
 type Room = Tables<"rooms">;
 type SalaChoice = (typeof SALAS)[number];
+type Pinta = { color: string; fuente: string; nube: string; fondo: string };
+const db = supabase as any;
+
+const NUBES = [
+  { nombre: "Blanca", clase: "bg-paper text-ink" },
+  { nombre: "Noche", clase: "bg-night-soft text-primary-foreground" },
+  { nombre: "Menta", clase: "bg-mint text-ink" },
+  { nombre: "Dorada", clase: "bg-gold text-ink" },
+  { nombre: "Agua", clase: "bg-water text-ink" },
+  { nombre: "Vidrio", clase: "bg-paper/20 text-primary-foreground backdrop-blur" },
+];
+const FONDOS = [
+  { nombre: "Luna", valor: "/fondo-luna.jpg" },
+  { nombre: "Lluvia", valor: "/portada-lluvia.jpg" },
+  { nombre: "Venezuela", valor: "/venezuela-bg.png" },
+  { nombre: "Liso", valor: "" },
+];
+const TABS = ["Colores", "Fuentes", "Marcos", "Efectos", "Avatares", "Nube", "Fondo"] as const;
 
 const COLORES = [
   "#FF1493", "#FF00FF", "#9400D3", "#8A2BE2",
@@ -67,25 +89,31 @@ function NightApp() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [showCoffee, setShowCoffee] = useState(false);
-  const [otherAmount, setOtherAmount] = useState("");
-  const [selectedAmount, setSelectedAmount] = useState<string | null>(null);
-  const [savingTip, setSavingTip] = useState(false);
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [avatarDraft, setAvatarDraft] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [marcoActivo, setMarcoActivo] = useState<number | null>(null);
+  const [saldo, setSaldo] = useState(0);
+  const [vipActivos, setVipActivos] = useState<number[]>([]);
+  const [showEditor, setShowEditor] = useState(false);
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Colores");
+  const comprar = useServerFn(comprarMarco);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [enteringTema, setEnteringTema] = useState<string | null>(null);
-  const [pinta, setPinta] = useState<{ color: string; fuente: string }>({ color: "", fuente: "Arial, sans-serif" });
+  const [pinta, setPinta] = useState<Pinta>({ color: "", fuente: "Arial, sans-serif", nube: NUBES[0]!.clase, fondo: "/fondo-luna.jpg" });
   const [showPinta, setShowPinta] = useState(false);
   const pintaKey = `miPinta_${authId ?? "anon"}`;
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(pintaKey);
-      if (saved) setPinta(JSON.parse(saved));
+      if (saved) setPinta((c) => ({ ...c, ...JSON.parse(saved) }));
     } catch { /* ignore */ }
   }, [pintaKey]);
 
-  const updatePinta = (next: Partial<{ color: string; fuente: string }>) => {
+  const updatePinta = (next: Partial<Pinta>) => {
     setPinta((current) => {
       const merged = { ...current, ...next };
       window.localStorage.setItem(pintaKey, JSON.stringify(merged));
@@ -98,15 +126,44 @@ function NightApp() {
     void supabase.auth.getUser().then(async ({ data }) => {
       if (!active || !data.user) return;
       setAuthId(data.user.id);
-      const { data: profile } = await supabase
+      const { data: profile } = await db
         .from("profiles")
-        .select("nickname")
+        .select("nickname,avatar_url,marco_activo")
         .eq("id", data.user.id)
         .maybeSingle();
-      if (active && profile?.nickname) setNickname(profile.nickname);
+      if (active && profile?.nickname) {
+        setNickname(profile.nickname);
+        setAvatar(profile.avatar_url ?? null);
+        setMarcoActivo(profile.marco_activo ?? null);
+      }
+      void refreshWallet(data.user.id);
     });
     return () => { active = false; };
   }, []);
+
+  const refreshWallet = async (uid: string) => {
+    const [{ data: w }, { data: owned }] = await Promise.all([
+      db.from("monedas").select("saldo").eq("user_id", uid).maybeSingle(),
+      db.from("marcos_usuario").select("marco_id").eq("user_id", uid).gt("expira", new Date().toISOString()),
+    ]);
+    setSaldo(w?.saldo ?? 0);
+    setVipActivos((owned ?? []).map((o: { marco_id: number }) => o.marco_id));
+  };
+
+  const pickMarco = async (id: number, limpio = false) => {
+    if (!authId) return;
+    const frame = MARCOS.find((m) => m.id === id);
+    if (frame?.vip && !limpio && !vipActivos.includes(id)) {
+      const res = await comprar({ data: { marcoId: id } });
+      if (!res.ok) { toast.error(res.error); return; }
+      setSaldo(res.saldo);
+      setVipActivos((v) => [...v, id]);
+      toast("¡Marco VIP activo por 1 día! ✨");
+    } else {
+      await db.from("profiles").update({ marco_activo: id }).eq("id", authId);
+    }
+    setMarcoActivo(id);
+  };
 
   const refreshRoomsAndCounts = useCallback(async () => {
     const [{ data: roomData }, { data: presenceData }] = await Promise.all([
@@ -199,8 +256,20 @@ function NightApp() {
         userId = data.user?.id ?? null;
       }
       if (!userId) throw new Error("No se pudo abrir la sesión.");
-      const { error } = await supabase.from("profiles").upsert({ id: userId, nickname: clean, state: "Lara", updated_at: new Date().toISOString() });
+      let avatarValue = avatarDraft ?? avatar;
+      if (avatarFile) {
+        const ext = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${userId}/${Date.now()}.${ext}`;
+        const { error: upError } = await supabase.storage.from("avatares").upload(path, avatarFile, { contentType: avatarFile.type, upsert: true });
+        if (upError) throw upError;
+        avatarValue = `storage:${path}`;
+      }
+      const pais = (navigator.language.split("-")[1] ?? "").toUpperCase() || null;
+      const { error } = await db.from("profiles").upsert({ id: userId, nickname: clean, state: "Lara", avatar_url: avatarValue, pais, updated_at: new Date().toISOString() });
       if (error) throw error;
+      setAvatar(avatarValue);
+      setAvatarFile(null);
+      window.localStorage.setItem("perfilDesvelado", JSON.stringify({ nombre: clean, avatar: avatarValue }));
       setAuthId(userId);
       setNickname(clean);
       setShowNickname(false);
@@ -215,7 +284,7 @@ function NightApp() {
   const sendMessage = async ({ text }: { text: string }) => {
     const body = text.trim();
     if (!body || !authId || !nickname || !activeRoom) return;
-    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente });
+    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente, avatar_url: avatar, marco: marcoActivo } as any);
     if (error) setNotice("Tu mensaje no pudo enviarse. Intenta de nuevo.");
   };
 
@@ -255,44 +324,6 @@ function NightApp() {
     }
   };
 
-  const closeCoffee = () => {
-    if (savingTip) return;
-    setShowCoffee(false);
-    setSelectedAmount(null);
-    setOtherAmount("");
-  };
-
-  const chooseAmount = (amount: string) => {
-    if (!/^\d+(?:\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || Number(amount) > 9999999999.99) return;
-    setSelectedAmount(amount);
-  };
-
-  const copyValue = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast("¡Copiado!");
-    } catch {
-      toast.error("No se pudo copiar. Intenta de nuevo.");
-    }
-  };
-
-  const confirmTip = async () => {
-    if (selectedAmount === null || !authId || savingTip) return;
-    setSavingTip(true);
-    try {
-      const { error } = await supabase.from("propinas").insert({ user_id: authId, monto: Number(selectedAmount) });
-      if (error) throw error;
-      setShowCoffee(false);
-      setSelectedAmount(null);
-      setOtherAmount("");
-      toast("¡Gracias por el cafecito! ❤️ Tu apoyo significa mucho");
-    } catch {
-      toast.error("No pudimos registrar tu apoyo. Intenta de nuevo.");
-    } finally {
-      setSavingTip(false);
-    }
-  };
-
   const [splash, setSplash] = useState(true);
   useEffect(() => { const t = setTimeout(() => setSplash(false), 1400); return () => clearTimeout(t); }, []);
 
@@ -322,11 +353,14 @@ function NightApp() {
       )}
 
       {screen === "chat" && activeRoom && (
-        <section className="pantalla-chat relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8">
+        <section className="pantalla-chat relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8" style={{ backgroundImage: pinta.fondo ? `url(${pinta.fondo})` : "none" }}>
           <CoffeeButton onOpen={() => setShowCoffee(true)} />
           <button type="button" onClick={() => setShowPinta(true)} className="absolute left-2 top-2 z-20 flex h-8 items-center gap-1.5 rounded-full bg-paper/95 px-3 text-xs font-semibold text-ink shadow-md">
             <Palette className="size-3.5" /> Mi pinta
           </button>
+          {(activeRoom as any).fundador_id === authId && (
+            <button type="button" onClick={() => setShowEditor(true)} className="absolute left-1/2 top-2 z-20 h-8 -translate-x-1/2 rounded-full bg-gold px-3 text-xs font-bold text-ink">👑 Editar sala</button>
+          )}
           <img src="/splash-aritos.jpg" alt="Logo de Estamos en la misma" className="mx-auto mb-2 size-12 rounded-full object-cover shadow-lg" />
           <h1 className="mb-6 text-center text-2xl font-normal text-primary-foreground sm:text-3xl">Estamos en la misma</h1>
           <div className="mb-5 flex min-h-20 items-center gap-3 rounded-[2rem] bg-night-soft px-4 shadow-xl">
@@ -341,11 +375,14 @@ function NightApp() {
                 <ConversationEmptyState title="La noche está en silencio" description="Suelta lo que sientes para comenzar." />
               ) : messages.map((message) => (
                 <Message from="assistant" key={message.id} className="max-w-full">
-                  <MessageContent className="w-full rounded-[1.7rem] bg-paper px-5 py-4 text-ink shadow-lg">
-                    <div className="mb-2 font-bold">{message.nickname}</div>
+                  <MessageContent className={`w-full rounded-[1.7rem] px-5 py-4 shadow-lg ${message.user_id === authId ? pinta.nube : "bg-paper text-ink"}`}>
+                    <div className="mb-2 flex items-center gap-2 font-bold">
+                      <AvatarMarco avatar={(message as any).avatar_url} marco={(message as any).marco} size={36} />
+                      {message.nickname}
+                    </div>
                     <div className="flex items-end gap-3">
                       <p className="min-w-0 flex-1 break-words text-lg leading-snug sm:text-xl" style={{ color: message.color || undefined, fontFamily: message.fuente || undefined }}>{message.body}</p>
-                      <time className="shrink-0 text-sm text-muted-foreground">{new Date(message.created_at).toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" })}</time>
+                      <time className="shrink-0 text-sm opacity-60">{new Date(message.created_at).toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" })}</time>
                     </div>
                   </MessageContent>
                 </Message>
@@ -360,92 +397,100 @@ function NightApp() {
             </PromptInputFooter>
           </PromptInput>
           <Dialog open={showPinta} onOpenChange={setShowPinta}>
-            <DialogContent className="max-w-sm rounded-2xl">
+            <DialogContent className="panel-neon max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto rounded-2xl text-primary-foreground">
               <DialogHeader>
                 <DialogTitle>Mi pinta</DialogTitle>
-                <DialogDescription>Elige el color y la letra de tus mensajes.</DialogDescription>
+                <DialogDescription className="text-primary-foreground/70">Tienes {saldo} moneditas 🪙</DialogDescription>
               </DialogHeader>
-              <div className="grid grid-cols-6 gap-3">
-                {COLORES.map((c) => (
-                  <button key={c} type="button" aria-label={`Color ${c}`} onClick={() => updatePinta({ color: c })} style={{ backgroundColor: c }} className={`size-9 rounded-full border-2 ${pinta.color === c ? "border-ring ring-2 ring-ring" : "border-border"}`} />
+              <div className="flex gap-1 overflow-x-auto pb-1">
+                {TABS.map((t) => (
+                  <button key={t} type="button" onClick={() => setTab(t)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${tab === t ? "bg-water text-ink" : "bg-night-soft"}`}>{t}</button>
                 ))}
               </div>
-              <div className="mt-2 grid max-h-56 grid-cols-2 gap-2 overflow-y-auto pr-1">
-                {FUENTES.map((f) => (
-                  <button key={f.nombre} type="button" onClick={() => updatePinta({ fuente: f.valor })} style={{ fontFamily: f.valor }} className={`flex h-11 items-center justify-center truncate rounded-lg border px-2 text-base ${pinta.fuente === f.valor ? "border-ring bg-secondary" : "border-border"}`}>{f.nombre}</button>
-                ))}
+              {tab === "Colores" && (
+                <div className="grid grid-cols-6 gap-3">
+                  {COLORES.map((c) => (
+                    <button key={c} type="button" aria-label={`Color ${c}`} onClick={() => updatePinta({ color: c })} style={{ backgroundColor: c }} className={`size-9 rounded-full border-2 ${pinta.color === c ? "border-ring ring-2 ring-ring" : "border-border"}`} />
+                  ))}
+                </div>
+              )}
+              {tab === "Fuentes" && (
+                <div className="grid max-h-64 grid-cols-2 gap-2 overflow-y-auto pr-1">
+                  {FUENTES.map((f) => (
+                    <button key={f.nombre} type="button" onClick={() => updatePinta({ fuente: f.valor })} style={{ fontFamily: f.valor }} className={`flex h-11 items-center justify-center truncate rounded-lg border px-2 text-base ${pinta.fuente === f.valor ? "border-water bg-night-soft" : "border-border"}`}>{f.nombre}</button>
+                  ))}
+                </div>
+              )}
+              {tab === "Marcos" && (
+                <div className="max-h-80 overflow-y-auto pr-1">
+                  <MarcoGrid activo={marcoActivo} unlocked={(id) => vipActivos.includes(id)} onPick={(id) => void pickMarco(id)} />
+                </div>
+              )}
+              {tab === "Efectos" && <p className="py-8 text-center text-primary-foreground/70">Próximamente ✨</p>}
+              {tab === "Avatares" && (
+                <div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {AVATARES.map((a) => (
+                      <button key={a} type="button" onClick={() => { setAvatar(a); if (authId) void db.from("profiles").update({ avatar_url: a }).eq("id", authId); }} className={`overflow-hidden rounded-full ring-2 ${avatar === a ? "ring-gold" : "ring-transparent"}`}>
+                        <img src={a} alt="Avatar" className="aspect-square w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                  <Button variant="outline" className="mt-3 w-full text-ink" onClick={() => { setShowPinta(false); setNicknameDraft(nickname); setShowNickname(true); }}>📸 Cambiar foto</Button>
+                </div>
+              )}
+              {tab === "Nube" && (
+                <div className="grid grid-cols-3 gap-2">
+                  {NUBES.map((n) => <button key={n.nombre} type="button" onClick={() => updatePinta({ nube: n.clase })} className={`h-12 rounded-2xl text-sm font-semibold ${n.clase} ${pinta.nube === n.clase ? "ring-2 ring-water" : ""}`}>{n.nombre}</button>)}
+                </div>
+              )}
+              {tab === "Fondo" && (
+                <div className="grid grid-cols-2 gap-2">
+                  {FONDOS.map((f) => (
+                    <button key={f.nombre} type="button" onClick={() => updatePinta({ fondo: f.valor })} className={`h-20 rounded-xl bg-night-soft bg-cover bg-center text-sm font-semibold ${pinta.fondo === f.valor ? "ring-2 ring-water" : ""}`} style={f.valor ? { backgroundImage: `url(${f.valor})` } : undefined}>{f.nombre}</button>
+                  ))}
+                </div>
+              )}
+              <div className={`mt-2 flex items-center gap-2 rounded-2xl p-3 ${pinta.nube}`}>
+                <AvatarMarco avatar={avatar} marco={marcoActivo} size={40} />
+                <p className="text-lg" style={{ color: pinta.color || undefined, fontFamily: pinta.fuente }}>Así se verán tus mensajes</p>
               </div>
-              <p className="mt-2 rounded-lg bg-paper p-3 text-center text-lg text-ink" style={{ color: pinta.color || undefined, fontFamily: pinta.fuente }}>Así se verán tus mensajes</p>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={showEditor} onOpenChange={setShowEditor}>
+            <DialogContent className="panel-neon max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto rounded-2xl text-primary-foreground">
+              <DialogHeader><DialogTitle>👑 Editor de tu sala</DialogTitle><DialogDescription className="text-primary-foreground/70">Como fundador, usa cualquier marco gratis.</DialogDescription></DialogHeader>
+              <MarcoGrid limpio activo={marcoActivo} unlocked={() => true} onPick={(id) => void pickMarco(id, true)} />
             </DialogContent>
           </Dialog>
         </section>
       )}
 
       {showNickname && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-night/90 px-6">
-          <form onSubmit={saveNickname} className="w-full max-w-sm rounded-lg bg-paper p-6 text-ink shadow-2xl">
-            <img src="/splash-aritos.jpg" alt="Logo de Estamos en la misma" className="mx-auto mb-4 size-24 rounded-md object-cover" />
-            <h2 className="text-center text-2xl font-bold">¿Cómo quieres que te llamemos?</h2>
-            <p className="mt-2 text-center text-sm text-muted-foreground">Tu apodo será visible en el chat.</p>
-            <label className="mt-5 block text-sm font-semibold" htmlFor="nickname">Apodo</label>
-            <input id="nickname" autoFocus maxLength={24} minLength={2} required value={nicknameDraft} onChange={(event) => setNicknameDraft(event.target.value)} placeholder="Desvelado_234" className="mt-2 h-12 w-full rounded-md border border-input bg-background px-4 text-foreground outline-none focus:ring-2 focus:ring-water" />
-            <Button disabled={busy || nicknameDraft.trim().length < 2} className="mt-5 h-12 w-full bg-night-soft text-primary-foreground hover:bg-night" type="submit">{busy ? "Entrando..." : "Continuar"}</Button>
+        <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-night/90 px-4 py-6">
+          <form onSubmit={saveNickname} className="panel-neon w-full max-w-sm rounded-2xl p-5 text-primary-foreground">
+            <h2 className="text-center text-xl font-extrabold">EPA DESVELADO! ¿CÓMO TE LLAMAS Y TU FOTO?</h2>
+            <div className="mt-3 flex justify-center"><AvatarMarco avatar={avatarFile ? URL.createObjectURL(avatarFile) : avatarDraft ?? avatar} marco={marcoActivo} size={88} /></div>
+            <label className="mt-3 block text-sm font-semibold" htmlFor="nickname">Tu nombre</label>
+            <input id="nickname" autoFocus maxLength={24} minLength={2} required value={nicknameDraft} onChange={(event) => setNicknameDraft(event.target.value)} placeholder="Desvelado_234" className="mt-1 h-11 w-full rounded-md bg-night-soft px-4 outline-none placeholder:text-primary-foreground/50 focus:ring-2 focus:ring-water" />
+            <label className="mt-3 flex h-11 cursor-pointer items-center justify-center rounded-md border border-dashed border-water/60 text-sm font-semibold">
+              📸 SUBIR MI FOTO DE GALERÍA
+              <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f && f.size <= 5_000_000) { setAvatarFile(f); setAvatarDraft(null); } else if (f) toast.error("La foto debe pesar menos de 5 MB."); }} />
+            </label>
+            <div className="mt-3 grid grid-cols-5 gap-2">
+              {AVATARES.map((a) => (
+                <button key={a} type="button" onClick={() => { setAvatarDraft(a); setAvatarFile(null); }} className={`overflow-hidden rounded-full ring-2 ${avatarDraft === a && !avatarFile ? "ring-gold" : "ring-transparent"}`}>
+                  <img src={a} alt="Avatar" className="aspect-square w-full object-cover" />
+                </button>
+              ))}
+            </div>
+            <Button disabled={busy || nicknameDraft.trim().length < 2} className="mt-4 h-12 w-full bg-gold font-extrabold text-ink hover:bg-gold/90" type="submit">{busy ? "Entrando..." : "ENTRAR AL CHAT 🔥"}</Button>
           </form>
         </div>
       )}
 
-      {screen === "chat" && (
-        <Dialog open={showCoffee} onOpenChange={(open) => { if (!open) closeCoffee(); }}>
-          <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-sm gap-0 overflow-y-auto rounded-lg border-border bg-paper p-5 text-ink shadow-2xl sm:p-6 [&>button]:text-ink [&>button>span]:hidden [&>button]:after:content-['Cerrar'] [&>button]:after:sr-only">
-            {selectedAmount === null ? (
-              <>
-                <Coffee className="mx-auto size-9 text-night-soft" aria-hidden="true" />
-                <DialogHeader className="mt-3 text-center sm:text-center">
-                  <DialogTitle className="text-2xl">Invita un cafecito</DialogTitle>
-                  <DialogDescription>Elige el monto que deseas enviar.</DialogDescription>
-                </DialogHeader>
-                <div className="mt-6 grid grid-cols-3 gap-2">
-                  {[100, 200, 300].map((amount) => <Button key={amount} onClick={() => chooseAmount(String(amount))} className="h-12 bg-night-soft text-primary-foreground hover:bg-night">{amount}</Button>)}
-                </div>
-                <form className="mt-5" onSubmit={(event) => { event.preventDefault(); chooseAmount(otherAmount); }}>
-                  <label className="block text-sm font-semibold" htmlFor="other-amount">Otro monto</label>
-                  <div className="mt-2 flex gap-2">
-                    <input id="other-amount" inputMode="decimal" min="0.01" step="0.01" type="number" value={otherAmount} onChange={(event) => setOtherAmount(event.target.value)} placeholder="Agregar otro valor" className="h-12 min-w-0 flex-1 rounded-md border border-input bg-background px-4 text-foreground outline-none focus:ring-2 focus:ring-water" />
-                    <Button disabled={!Number.isFinite(Number(otherAmount)) || Number(otherAmount) <= 0} type="submit" className="h-12 bg-mint text-ink hover:bg-mint/90">Continuar</Button>
-                  </div>
-                </form>
-              </>
-            ) : (
-              <>
-                <DialogHeader className="pr-5 text-center sm:text-center">
-                  <DialogTitle className="text-2xl leading-tight">¡Gracias por el cafecito! ☕</DialogTitle>
-                  <DialogDescription className="pt-1 text-base">Para enviar Bs {selectedAmount}</DialogDescription>
-                </DialogHeader>
-                <div className="mt-5 space-y-2">
-                  {([
-                    { label: "Banco", display: "BNC (0191)", copy: "0191" },
-                    { label: "Teléfono", display: "04164531216", copy: "04164531216" },
-                    { label: "Cédula", display: "V26049337", copy: "26049337" },
-                    { label: "Monto", display: `Bs ${selectedAmount}`, copy: String(selectedAmount) },
-                  ]).map((row) => (
-                    <div key={row.label} className="flex min-h-12 items-center gap-2 rounded-md border border-border bg-secondary/60 px-3 py-1.5">
-                      <span className="min-w-0 flex-1 text-sm text-muted-foreground">{row.label}</span>
-                      <span className="text-right text-sm font-semibold tabular-nums text-ink">{row.display}</span>
-                      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Copiar ${row.label.toLowerCase()}`} title={`Copiar ${row.label.toLowerCase()}`} onClick={() => void copyValue(row.copy)} className="ml-1 shrink-0 text-night-soft hover:bg-water/20 hover:text-ink"><Copy aria-hidden="true" /></Button>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /><span>O escanea directo</span><span className="h-px flex-1 bg-border" /></div>
-                <img src="/qr-pago-movil.png" alt="Código QR de pago móvil" width={220} height={220} className="mx-auto mt-3 size-[min(220px,52dvh)] rounded-md border-4 border-paper object-contain ring-1 ring-border" />
-                <p className="mt-3 text-center text-sm text-muted-foreground">Gracias por el cafecito ❤️</p>
-                <div className="mt-5 flex flex-col gap-2">
-                  <Button type="button" variant="outline" onClick={() => void copyValue(`BNC (0191) - 04164531216 - V26049337 - Bs ${selectedAmount}`)} className="h-11 w-full border-border text-ink"><Copy aria-hidden="true" />Copiar todos los datos</Button>
-                  <Button type="button" disabled={savingTip} onClick={() => void confirmTip()} className="h-12 w-full bg-night-soft text-primary-foreground hover:bg-night">{savingTip ? "Guardando..." : "Ya apoyé ☕"}</Button>
-                </div>
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
+      {screen === "chat" && showCoffee && (
+        <CafecitoDialog open userId={authId} modo={{ tipo: "monedas" }} onClose={() => { setShowCoffee(false); if (authId) void refreshWallet(authId); }} />
       )}
     </main>
   );
