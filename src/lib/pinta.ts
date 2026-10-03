@@ -6,7 +6,7 @@ export const NUBES: Nube[] = [
   ...PASTEL.map((color, i) => ({ id: i + 1, nombre: `Pastel ${i + 1}`, premium: false, color, texto: "#1a1a2e" })),
   ...Array.from({ length: 10 }, (_, i) => ({ id: i + 11, nombre: `Brillo ${i + 1}`, premium: true, img: `/nubes/n${i + 11}.jpg`, texto: [11, 12, 13, 14, 17, 18].includes(i + 11) ? "#1a1a2e" : "#ffffff" })),
 ];
-export const nubeStyle = (id: number | null | undefined): { backgroundColor?: string; backgroundImage?: string; color: string } | null => {
+export const nubeStyle = (id: number | null | undefined): { backgroundColor?: string | undefined; backgroundImage?: string; color: string } | null => {
   const n = NUBES.find((x) => x.id === id);
   if (!n) return null;
   return n.img ? { backgroundImage: `url(${n.img})`, color: n.texto } : { backgroundColor: n.color, color: n.texto };
