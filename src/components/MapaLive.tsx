@@ -41,14 +41,16 @@ export function MapaLive({ onSalas }: { onSalas: () => void }) {
         <p className="text-5xl font-black tabular-nums text-gold transition-all" style={{ textShadow: "0 0 18px var(--gold)" }}>{total.toLocaleString("es-VE")}</p>
       </div>
       <div className="relative mx-auto min-h-0 w-full max-w-md flex-1">
-        <img src="/mapa-latam.jpg" alt="Mapa de Latinoamérica con puntos de personas conectadas" className="absolute inset-0 h-full w-full object-contain" />
-        <div className="absolute inset-0 mx-auto aspect-[1085/1140] max-h-full max-w-full" style={{ top: "50%", transform: "translateY(-50%)" }}>
-          {PAISES.map((p) => (
-            <span key={p.n} className="absolute" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
-              <span className="map-ping absolute left-0 top-0 size-5 rounded-full border-2 border-gold" />
-              <span className="absolute left-0 top-0 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold shadow-[0_0_10px_var(--gold)]" />
-            </span>
-          ))}
+        <div className="absolute inset-0 grid place-items-center">
+          <div className="relative aspect-[1085/1140] h-full max-w-full">
+            <img src="/mapa-latam.jpg" alt="Mapa de Latinoamérica con puntos de personas conectadas" className="h-full w-full object-cover" />
+            {PAISES.map((p) => (
+              <span key={p.n} className="absolute" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+                <span className="map-ping absolute left-0 top-0 size-5 rounded-full border-2 border-gold" />
+                <span className="absolute left-0 top-0 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold shadow-[0_0_10px_var(--gold)]" />
+              </span>
+            ))}
+          </div>
         </div>
         <button type="button" onClick={onSalas} className="absolute bottom-3 right-3 z-10 rounded-full bg-gold px-4 py-3 text-sm font-extrabold text-ink shadow-[0_0_18px_var(--gold)]">
           💬 Entra a las salas de chat
