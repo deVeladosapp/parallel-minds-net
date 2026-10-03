@@ -113,9 +113,9 @@ function NightApp() {
     });
     if (authId) {
       const cols: Record<string, unknown> = {};
-      if (next.nube !== undefined) cols.chat_bubble_style = next.nube;
-      if (next.fondo !== undefined) cols.chat_background_url = next.fondo;
-      if (next.efecto !== undefined) cols.efecto_letra = next.efecto;
+      if (next.nube !== undefined) cols["chat_bubble_style"] = next.nube;
+      if (next.fondo !== undefined) cols["chat_background_url"] = next.fondo;
+      if (next.efecto !== undefined) cols["efecto_letra"] = next.efecto;
       if (Object.keys(cols).length) void db.from("profiles").update(cols).eq("id", authId);
     }
   };
