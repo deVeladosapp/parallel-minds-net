@@ -163,3 +163,32 @@ export const comprarMarco = createServerFn({ method: "POST" })
     await admin.from("profiles").update({ marco_activo: data.marcoId }).eq("id", context.userId);
     return { ok: true as const, saldo: updated.saldo };
   });
+
+/** Alquila una nube o fondo premium por 1 día. Gratis si el usuario está dentro de una sala VIP. */
+export const comprarItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    item: z.string().regex(/^(nube-(1[1-9]|20)|fondo-(1[3-9]|2[0-4]))$/),
+    roomId: z.string().uuid().nullable(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { COSTO_PREMIUM } = await import("./pinta");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    let gratis = false;
+    if (data.roomId) {
+      const { data: room } = await admin.from("rooms").select("es_vip").eq("id", data.roomId).maybeSingle();
+      gratis = !!room?.es_vip;
+    }
+    const { data: wallet } = await admin.from("monedas").select("saldo").eq("user_id", context.userId).maybeSingle();
+    let saldo = wallet?.saldo ?? 0;
+    if (!gratis) {
+      if (saldo < COSTO_PREMIUM) return { ok: false as const, error: "No tienes suficientes moneditas." };
+      const { data: updated } = await admin.from("monedas").update({ saldo: saldo - COSTO_PREMIUM, updated_at: new Date().toISOString() }).eq("user_id", context.userId).eq("saldo", saldo).select().maybeSingle();
+      if (!updated) return { ok: false as const, error: "Intenta otra vez." };
+      saldo = updated.saldo;
+    }
+    const { error } = await admin.from("items_usuario").insert({ user_id: context.userId, item: data.item, expira: new Date(Date.now() + 86400_000).toISOString() });
+    if (error) return { ok: false as const, error: "Todavía no está activa la tienda de pinta." };
+    return { ok: true as const, saldo, gratis };
+  });
