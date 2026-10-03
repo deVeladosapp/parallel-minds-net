@@ -11,7 +11,9 @@ import { SALAS, SeleccionSalas } from "@/components/SeleccionSalas";
 import { AvatarMarco, MarcoGrid } from "@/components/AvatarMarco";
 import { CafecitoDialog } from "@/components/CafecitoDialog";
 import { AVATARES, MARCOS } from "@/lib/desvelados";
-import { comprarMarco } from "@/lib/pagos.functions";
+import { comprarItem, comprarMarco } from "@/lib/pagos.functions";
+import { COLORES_GLOW, COSTO_PREMIUM, EFECTOS, FONDOS, NUBES, colorStyle, nubeStyle } from "@/lib/pinta";
+import { MapaLive } from "@/components/MapaLive";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,24 +23,12 @@ type Screen = "cover" | "map" | "rooms" | "chat";
 type ChatMessage = Tables<"messages">;
 type Room = Tables<"rooms">;
 type SalaChoice = (typeof SALAS)[number];
-type Pinta = { color: string; fuente: string; nube: string; fondo: string };
+type Pinta = { color: string; fuente: string; nube: number; fondo: string; efecto: number | null };
 const db = supabase as any;
 
-const NUBES = [
-  { nombre: "Blanca", clase: "bg-paper text-ink" },
-  { nombre: "Noche", clase: "bg-night-soft text-primary-foreground" },
-  { nombre: "Menta", clase: "bg-mint text-ink" },
-  { nombre: "Dorada", clase: "bg-gold text-ink" },
-  { nombre: "Agua", clase: "bg-water text-ink" },
-  { nombre: "Vidrio", clase: "bg-paper/20 text-primary-foreground backdrop-blur" },
-];
-const FONDOS = [
-  { nombre: "Luna", valor: "/fondo-luna.jpg" },
-  { nombre: "Lluvia", valor: "/portada-lluvia.jpg" },
-  { nombre: "Venezuela", valor: "/venezuela-bg.png" },
-  { nombre: "Liso", valor: "" },
-];
-const TABS = ["Colores", "Fuentes", "Marcos", "Efectos", "Avatares", "Nube", "Fondo"] as const;
+const TABS = ["Colores", "Fuentes", "Efectos", "Nube", "Fondo", "Marcos", "Avatares"] as const;
+const Moneda = ({ n }: { n: number }) => <span className="inline-flex items-center gap-1 rounded-full bg-night/85 px-2 py-0.5 text-[10px] font-bold text-gold ring-1 ring-gold/60"><span className="moneda-3d">$</span>{n} × 1 DÍA</span>;
+const Gratis = () => <span className="rounded-full bg-night/85 px-2 py-0.5 text-[10px] font-extrabold text-mint ring-1 ring-mint/70">✓ GRATIS</span>;
 
 const COLORES = [
   "#FF1493", "#FF00FF", "#9400D3", "#8A2BE2",
@@ -102,14 +92,16 @@ function NightApp() {
   const [roomCounts, setRoomCounts] = useState<Record<string, number>>({});
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
   const [enteringTema, setEnteringTema] = useState<string | null>(null);
-  const [pinta, setPinta] = useState<Pinta>({ color: "", fuente: "Arial, sans-serif", nube: NUBES[0]!.clase, fondo: "/fondo-luna.jpg" });
+  const [pinta, setPinta] = useState<Pinta>({ color: "", fuente: "Arial, sans-serif", nube: 10, fondo: "/fondo-luna.jpg", efecto: null });
+  const [items, setItems] = useState<string[]>([]);
+  const comprarIt = useServerFn(comprarItem);
   const [showPinta, setShowPinta] = useState(false);
   const pintaKey = `miPinta_${authId ?? "anon"}`;
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(pintaKey);
-      if (saved) setPinta((c) => ({ ...c, ...JSON.parse(saved) }));
+      if (saved) { const p = JSON.parse(saved); if (typeof p.nube !== "number") delete p.nube; setPinta((c) => ({ ...c, ...p })); }
     } catch { /* ignore */ }
   }, [pintaKey]);
 
@@ -119,6 +111,24 @@ function NightApp() {
       window.localStorage.setItem(pintaKey, JSON.stringify(merged));
       return merged;
     });
+    if (authId) {
+      const cols: Record<string, unknown> = {};
+      if (next.nube !== undefined) cols.chat_bubble_style = next.nube;
+      if (next.fondo !== undefined) cols.chat_background_url = next.fondo;
+      if (next.efecto !== undefined) cols.efecto_letra = next.efecto;
+      if (Object.keys(cols).length) void db.from("profiles").update(cols).eq("id", authId);
+    }
+  };
+
+  const pickPremium = async (item: string, apply: () => void) => {
+    if (!items.includes(item)) {
+      const res = await comprarIt({ data: { item, roomId: activeRoom?.id ?? null } });
+      if (!res.ok) { toast.error(res.error); return; }
+      setSaldo(res.saldo);
+      setItems((v) => [...v, item]);
+      toast(res.gratis ? "¡Gratis por estar en sala VIP! ✨" : `¡Activo por 1 día! −${COSTO_PREMIUM} 🪙`);
+    }
+    apply();
   };
 
   useEffect(() => {
@@ -142,6 +152,8 @@ function NightApp() {
   }, []);
 
   const refreshWallet = async (uid: string) => {
+    const { data: its } = await db.from("items_usuario").select("item").eq("user_id", uid).gt("expira", new Date().toISOString());
+    setItems((its ?? []).map((o: { item: string }) => o.item));
     const [{ data: w }, { data: owned }] = await Promise.all([
       db.from("monedas").select("saldo").eq("user_id", uid).maybeSingle(),
       db.from("marcos_usuario").select("marco_id").eq("user_id", uid).gt("expira", new Date().toISOString()),
@@ -261,12 +273,13 @@ function NightApp() {
         const ext = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
         const path = `${userId}/${Date.now()}.${ext}`;
         const { error: upError } = await supabase.storage.from("avatares").upload(path, avatarFile, { contentType: avatarFile.type, upsert: true });
-        if (upError) throw upError;
-        avatarValue = `storage:${path}`;
+        if (!upError) avatarValue = `storage:${path}`;
       }
       const pais = (navigator.language.split("-")[1] ?? "").toUpperCase() || null;
-      const { error } = await db.from("profiles").upsert({ id: userId, nickname: clean, state: "Lara", avatar_url: avatarValue, pais, updated_at: new Date().toISOString() });
+      const { error } = await db.from("profiles").upsert({ id: userId, nickname: clean, state: "Lara", updated_at: new Date().toISOString() }, { onConflict: "id" });
       if (error) throw error;
+      // Datos extra: si alguna columna aún no existe, no bloquea la entrada
+      void db.from("profiles").update({ avatar_url: avatarValue, pais }).eq("id", userId);
       setAvatar(avatarValue);
       setAvatarFile(null);
       window.localStorage.setItem("perfilDesvelado", JSON.stringify({ nombre: clean, avatar: avatarValue }));
@@ -284,7 +297,7 @@ function NightApp() {
   const sendMessage = async ({ text }: { text: string }) => {
     const body = text.trim();
     if (!body || !authId || !nickname || !activeRoom) return;
-    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente, avatar_url: avatar, marco: marcoActivo } as any);
+    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente, avatar_url: avatar, marco: marcoActivo, burbuja: pinta.nube, efecto: pinta.efecto } as any);
     if (error) setNotice("Tu mensaje no pudo enviarse. Intenta de nuevo.");
   };
 
@@ -341,19 +354,14 @@ function NightApp() {
         </div>
       )}
 
-      {screen === "map" && (
-        <div className="relative h-dvh w-screen overflow-hidden bg-night">
-          <img src="/venezuela-bg.png" alt="Mapa nocturno de Venezuela con personas desveladas" className="h-full w-full object-cover object-center" />
-          <Button aria-label="Entra a desahogarte y hablar con ellos" onClick={() => setScreen("rooms")} variant="ghost" className="absolute bottom-[3.5%] left-[14%] h-[7%] w-[72%] rounded-full bg-transparent hover:bg-transparent" />
-        </div>
-      )}
+      {screen === "map" && <MapaLive onSalas={() => setScreen("rooms")} />}
 
       {screen === "rooms" && (
         <SeleccionSalas counts={roomCounts} enteringTema={enteringTema} onBack={() => setScreen("map")} onSelect={enterRoom} />
       )}
 
       {screen === "chat" && activeRoom && (
-        <section className="pantalla-chat relative mx-auto flex h-dvh w-full max-w-xl flex-col px-5 pb-4 pt-8 sm:px-8" style={{ backgroundImage: pinta.fondo ? `url(${pinta.fondo})` : "none" }}>
+        <section className="pantalla-chat relative mx-auto flex h-dvh w-full max-w-3xl flex-col px-2 pb-2 pt-10 sm:px-4" style={{ backgroundImage: pinta.fondo ? `url(${pinta.fondo})` : "none" }}>
           <CoffeeButton onOpen={() => setShowCoffee(true)} />
           <button type="button" onClick={() => setShowPinta(true)} className="absolute left-2 top-2 z-20 flex h-8 items-center gap-1.5 rounded-full bg-paper/95 px-3 text-xs font-semibold text-ink shadow-md">
             <Palette className="size-3.5" /> Mi pinta
@@ -361,9 +369,7 @@ function NightApp() {
           {(activeRoom as any).fundador_id === authId && (
             <button type="button" onClick={() => setShowEditor(true)} className="absolute left-1/2 top-2 z-20 h-8 -translate-x-1/2 rounded-full bg-gold px-3 text-xs font-bold text-ink">👑 Editar sala</button>
           )}
-          <img src="/splash-aritos.jpg" alt="Logo de Estamos en la misma" className="mx-auto mb-2 size-12 rounded-full object-cover shadow-lg" />
-          <h1 className="mb-6 text-center text-2xl font-normal text-primary-foreground sm:text-3xl">Estamos en la misma</h1>
-          <div className="mb-5 flex min-h-20 items-center gap-3 rounded-[2rem] bg-night-soft px-4 shadow-xl">
+          <div className="mb-2 flex min-h-14 items-center gap-3 rounded-[2rem] bg-night-soft px-4 shadow-xl">
              <Button aria-label="Volver a las salas" onClick={() => setScreen("rooms")} size="icon" variant="ghost" className="shrink-0 rounded-full text-primary-foreground hover:bg-water/20 hover:text-primary-foreground"><ArrowLeft className="size-7" /></Button>
              <h2 className="min-w-0 flex-1 text-base font-semibold leading-tight sm:text-lg">{activeRoom.title} - Lara</h2>
              <span className="shrink-0 rounded-full bg-paper px-2.5 py-2 text-xs font-semibold text-ink"><span className="text-mint">●</span> {roomCounts[activeRoom.tema] ?? 0} conectados</span>
@@ -375,13 +381,13 @@ function NightApp() {
                 <ConversationEmptyState title="La noche está en silencio" description="Suelta lo que sientes para comenzar." />
               ) : messages.map((message) => (
                 <Message from="assistant" key={message.id} className="max-w-full">
-                  <MessageContent className={`w-full rounded-[1.7rem] px-5 py-4 shadow-lg ${message.user_id === authId ? pinta.nube : "bg-paper text-ink"}`}>
+                  <MessageContent className="w-full rounded-[1.7rem] bg-paper bg-cover bg-center px-5 py-4 text-ink shadow-lg" style={nubeStyle((message as any).burbuja ?? (message.user_id === authId ? pinta.nube : null)) ?? undefined}>
                     <div className="mb-2 flex items-center gap-2 font-bold">
                       <AvatarMarco avatar={(message as any).avatar_url} marco={(message as any).marco} size={36} />
                       {message.nickname}
                     </div>
                     <div className="flex items-end gap-3">
-                      <p className="min-w-0 flex-1 break-words text-lg leading-snug sm:text-xl" style={{ color: message.color || undefined, fontFamily: message.fuente || undefined }}>{message.body}</p>
+                      <p className="min-w-0 flex-1 break-words text-lg leading-snug sm:text-xl" style={{ ...colorStyle(message.color), fontFamily: message.fuente || undefined }}><span className={(message as any).efecto ? `fx-${(message as any).efecto}` : undefined}>{message.body}</span></p>
                       <time className="shrink-0 text-sm opacity-60">{new Date(message.created_at).toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" })}</time>
                     </div>
                   </MessageContent>
@@ -390,10 +396,10 @@ function NightApp() {
             </ConversationContent>
           </Conversation>
 
-          <PromptInput onSubmit={sendMessage} className="mt-4 rounded-[2rem] border-water/60 bg-night-soft/85 text-primary-foreground">
-            <PromptInputTextarea aria-label="Mensaje" placeholder="Suelta lo que sientes..." className="min-h-16 px-5 text-lg text-primary-foreground placeholder:text-primary-foreground/55" />
-            <PromptInputFooter className="justify-end px-3 pb-3">
-              <PromptInputSubmit aria-label="Enviar mensaje" className="size-12 rounded-full bg-mint text-ink hover:bg-mint/90"><Send className="size-6" /></PromptInputSubmit>
+          <PromptInput onSubmit={sendMessage} className="mt-2 rounded-[1.5rem] border-water/60 bg-night-soft/85 text-primary-foreground">
+            <PromptInputTextarea aria-label="Mensaje" placeholder="Suelta lo que sientes..." className="min-h-10 py-2 px-4 text-base text-primary-foreground placeholder:text-primary-foreground/55" />
+            <PromptInputFooter className="justify-end px-2 pb-1.5">
+              <PromptInputSubmit aria-label="Enviar mensaje" className="size-9 rounded-full bg-mint text-ink hover:bg-mint/90"><Send className="size-5" /></PromptInputSubmit>
             </PromptInputFooter>
           </PromptInput>
           <Dialog open={showPinta} onOpenChange={setShowPinta}>
@@ -412,6 +418,10 @@ function NightApp() {
                   {COLORES.map((c) => (
                     <button key={c} type="button" aria-label={`Color ${c}`} onClick={() => updatePinta({ color: c })} style={{ backgroundColor: c }} className={`size-9 rounded-full border-2 ${pinta.color === c ? "border-ring ring-2 ring-ring" : "border-border"}`} />
                   ))}
+                  <p className="col-span-6 mt-2 text-xs font-bold text-gold">✨ Colores premium con brillo</p>
+                  {COLORES_GLOW.map((g) => (
+                    <button key={g.c} type="button" aria-label={`Color ${g.nombre}`} title={g.nombre} onClick={() => updatePinta({ color: `glow:${g.c}` })} style={{ backgroundColor: g.c, boxShadow: `0 0 10px ${g.c}, 0 0 18px ${g.c}` }} className={`size-9 rounded-full border-2 ${pinta.color === `glow:${g.c}` ? "border-ring ring-2 ring-ring" : "border-paper/60"}`} />
+                  ))}
                 </div>
               )}
               {tab === "Fuentes" && (
@@ -426,7 +436,17 @@ function NightApp() {
                   <MarcoGrid activo={marcoActivo} unlocked={(id) => vipActivos.includes(id)} onPick={(id) => void pickMarco(id)} />
                 </div>
               )}
-              {tab === "Efectos" && <p className="py-8 text-center text-primary-foreground/70">Próximamente ✨</p>}
+              {tab === "Efectos" && (
+                <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto pr-1">
+                  <button type="button" onClick={() => updatePinta({ efecto: null })} className={`h-14 rounded-lg border text-sm ${pinta.efecto === null ? "border-water" : "border-border"}`}>Sin efecto</button>
+                  {EFECTOS.map((e) => (
+                    <button key={e.id} type="button" onClick={() => updatePinta({ efecto: e.id })} className={`flex h-14 flex-col items-center justify-center overflow-hidden rounded-lg border bg-night px-1 ${pinta.efecto === e.id ? "border-water ring-2 ring-water" : "border-border"}`}>
+                      <span className={`text-lg font-black ${e.clase}`}>SAMPLE</span>
+                      <span className="text-[10px] opacity-70">{e.id} {e.nombre}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {tab === "Avatares" && (
                 <div>
                   <div className="grid grid-cols-5 gap-2">
@@ -440,20 +460,26 @@ function NightApp() {
                 </div>
               )}
               {tab === "Nube" && (
-                <div className="grid grid-cols-3 gap-2">
-                  {NUBES.map((n) => <button key={n.nombre} type="button" onClick={() => updatePinta({ nube: n.clase })} className={`h-12 rounded-2xl text-sm font-semibold ${n.clase} ${pinta.nube === n.clase ? "ring-2 ring-water" : ""}`}>{n.nombre}</button>)}
-                </div>
-              )}
-              {tab === "Fondo" && (
-                <div className="grid grid-cols-2 gap-2">
-                  {FONDOS.map((f) => (
-                    <button key={f.nombre} type="button" onClick={() => updatePinta({ fondo: f.valor })} className={`h-20 rounded-xl bg-night-soft bg-cover bg-center text-sm font-semibold ${pinta.fondo === f.valor ? "ring-2 ring-water" : ""}`} style={f.valor ? { backgroundImage: `url(${f.valor})` } : undefined}>{f.nombre}</button>
+                <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto pr-1">
+                  {NUBES.map((n) => (
+                    <button key={n.id} type="button" onClick={() => n.premium ? void pickPremium(`nube-${n.id}`, () => updatePinta({ nube: n.id })) : updatePinta({ nube: n.id })} style={nubeStyle(n.id) ?? undefined} className={`flex h-16 items-end justify-center rounded-2xl bg-cover bg-center pb-1.5 ${pinta.nube === n.id ? "ring-2 ring-water" : ""}`}>
+                      {n.premium && !items.includes(`nube-${n.id}`) && !activeRoom?.es_vip ? <Moneda n={40} /> : <Gratis />}
+                    </button>
                   ))}
                 </div>
               )}
-              <div className={`mt-2 flex items-center gap-2 rounded-2xl p-3 ${pinta.nube}`}>
+              {tab === "Fondo" && (
+                <div className="grid max-h-80 grid-cols-3 gap-2 overflow-y-auto pr-1">
+                  {FONDOS.map((f) => (
+                    <button key={f.id} type="button" onClick={() => f.premium ? void pickPremium(`fondo-${f.id}`, () => updatePinta({ fondo: f.src })) : updatePinta({ fondo: f.src })} style={{ backgroundImage: `url(${f.src})` }} className={`flex aspect-[3/4] items-end justify-center rounded-xl bg-cover bg-center pb-1.5 ${pinta.fondo === f.src ? "ring-2 ring-water" : ""}`}>
+                      {f.premium && !items.includes(`fondo-${f.id}`) && !activeRoom?.es_vip ? <Moneda n={40} /> : <Gratis />}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 flex items-center gap-2 rounded-2xl bg-cover bg-center p-3" style={nubeStyle(pinta.nube) ?? undefined}>
                 <AvatarMarco avatar={avatar} marco={marcoActivo} size={40} />
-                <p className="text-lg" style={{ color: pinta.color || undefined, fontFamily: pinta.fuente }}>Así se verán tus mensajes</p>
+                <p className="text-lg" style={{ ...colorStyle(pinta.color), fontFamily: pinta.fuente }}><span className={pinta.efecto ? `fx-${pinta.efecto}` : undefined}>Así se verán tus mensajes</span></p>
               </div>
             </DialogContent>
           </Dialog>
@@ -484,7 +510,7 @@ function NightApp() {
                 </button>
               ))}
             </div>
-            <Button disabled={busy || nicknameDraft.trim().length < 2} className="mt-4 h-12 w-full bg-gold font-extrabold text-ink hover:bg-gold/90" type="submit">{busy ? "Entrando..." : "ENTRAR AL CHAT 🔥"}</Button>
+            <Button disabled={busy || nicknameDraft.trim().length < 2} className="mt-4 h-12 w-full bg-gold font-extrabold text-ink hover:bg-gold/90" type="submit">{busy ? "Entrando..." : "Ingresar"}</Button>
           </form>
         </div>
       )}
