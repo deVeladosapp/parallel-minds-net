@@ -26,13 +26,11 @@ export function useAvatarSrc(value: string | null | undefined) {
   return src;
 }
 
-const RING: Record<string, string> = { gold: "ring-2 ring-gold shadow-[0_0_10px_var(--gold)]", green: "ring-2 ring-mint shadow-[0_0_10px_var(--mint)]" };
-
-export function AvatarMarco({ avatar, marco, size = 40, ring }: { avatar: string | null | undefined; marco?: number | null; size?: number; ring?: "gold" | "green" | null }) {
+export function AvatarMarco({ avatar, marco, size = 40 }: { avatar: string | null | undefined; marco?: number | null; size?: number }) {
   const src = useAvatarSrc(avatar);
   const frame = MARCOS.find((m) => m.id === marco);
   return (
-    <span className={`relative inline-block shrink-0 rounded-full ${ring ? RING[ring] : ""}`} style={{ width: size, height: size }}>
+    <span className="relative inline-block shrink-0" style={{ width: size, height: size }}>
       {src ? (
         <img src={src} alt="" className="absolute inset-[14%] size-[72%] rounded-full object-cover" />
       ) : (
@@ -43,13 +41,13 @@ export function AvatarMarco({ avatar, marco, size = 40, ring }: { avatar: string
   );
 }
 
-export function MarcoGrid({ limpio, unlocked, activo, onPick, ring }: { limpio?: boolean; unlocked: (id: number) => boolean; activo: number | null; onPick: (id: number) => void; ring?: "gold" | "green" | null }: { limpio?: boolean; unlocked: (id: number) => boolean; activo: number | null; onPick: (id: number) => void }) {
+export function MarcoGrid({ limpio, unlocked, activo, onPick }: { limpio?: boolean; unlocked: (id: number) => boolean; activo: number | null; onPick: (id: number) => void }) {
   return (
     <div className="grid grid-cols-3 gap-3">
       {MARCOS.map((m) => (
         <button key={m.id} type="button" onClick={() => onPick(m.id)} aria-label={`Marco ${m.id}`} className={`flex flex-col items-center gap-1 rounded-xl p-1 ${activo === m.id ? "ring-2 ring-water" : ""}`}>
           <span className={`relative block size-20 bg-night ${m.id <= 10 ? "aspect-square overflow-hidden rounded-full" : "rounded-full"}`}>
-            <img src={m.src} alt="" className={`aspect-square size-full rounded-full object-cover ${ring ? RING[ring] : ""}`} />
+            <img src={m.src} alt="" className={m.id <= 10 ? "aspect-square size-full rounded-full object-cover" : "size-full rounded-xl object-contain"} />
             {!limpio && m.vip && !unlocked(m.id) && <span className="absolute right-0 top-0 text-sm">🔒</span>}
           </span>
           {!limpio && (m.vip ? (

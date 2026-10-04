@@ -96,7 +96,6 @@ function NightApp() {
   const [enteringTema, setEnteringTema] = useState<string | null>(null);
   const [pinta, setPinta] = useState<Pinta>({ color: "", fuente: "Arial, sans-serif", nube: 10, fondo: "/fondo-luna.jpg", efecto: null });
   const [items, setItems] = useState<string[]>([]);
-  const [ring, setRing] = useState<"gold" | "green" | null>(null);
   const comprarIt = useServerFn(comprarItem);
   const [showPinta, setShowPinta] = useState(false);
   const pintaKey = `miPinta_${authId ?? "anon"}`;
@@ -163,11 +162,6 @@ function NightApp() {
     ]);
     setSaldo(w?.saldo ?? 0);
     setVipActivos((owned ?? []).map((o: { marco_id: number }) => o.marco_id));
-    const [{ data: funda }, { data: extra }] = await Promise.all([
-      db.from("rooms").select("id").eq("fundador_id", uid).limit(1),
-      db.from("items_usuario").select("id").eq("user_id", uid).gt("expira", new Date().toISOString()).limit(1),
-    ]);
-    setRing(funda?.length ? "gold" : (extra?.length || owned?.length) ? "green" : null);
   };
 
   const pickMarco = async (id: number, limpio = false) => {
@@ -400,7 +394,7 @@ function NightApp() {
                 <Message from="assistant" key={message.id} className="max-w-full">
                   <MessageContent className="w-full rounded-[1.7rem] bg-paper bg-cover bg-center px-5 py-4 text-ink shadow-lg" style={nubeStyle((message as any).burbuja ?? (message.user_id === authId ? pinta.nube : null)) ?? undefined}>
                     <div className="mb-2 flex items-center gap-2 font-bold">
-                      <AvatarMarco avatar={(message as any).avatar_url} marco={(message as any).marco} size={36} ring={message.user_id === authId ? ring : null} />
+                      <AvatarMarco avatar={(message as any).avatar_url} marco={(message as any).marco} size={36} />
                       {message.nickname}
                     </div>
                     <div className="flex items-end gap-3">
@@ -469,10 +463,10 @@ function NightApp() {
               )}
               {tab === "Avatares" && (
                 <div>
-                  <div className="grid grid-cols-5 place-items-center gap-2">
+                  <div className="grid grid-cols-5 gap-2">
                     {AVATARES.map((a) => (
-                      <button key={a} type="button" onClick={() => { setAvatar(a); if (authId) void db.from("profiles").update({ avatar_url: a }).eq("id", authId); }} className={`aspect-square w-full overflow-hidden rounded-full ring-2 ${avatar === a ? "ring-gold" : ring ?? "ring-transparent"}`}>
-                        <img src={a} alt="Avatar" className="aspect-square h-full w-full rounded-full object-cover" />
+                      <button key={a} type="button" onClick={() => { setAvatar(a); if (authId) void db.from("profiles").update({ avatar_url: a }).eq("id", authId); }} className={`overflow-hidden rounded-full ring-2 ${avatar === a ? "ring-gold" : "ring-transparent"}`}>
+                        <img src={a} alt="Avatar" className="aspect-square w-full object-cover" />
                       </button>
                     ))}
                   </div>
@@ -498,7 +492,7 @@ function NightApp() {
                 </div>
               )}
               <div className="mt-2 flex items-center gap-2 rounded-2xl bg-cover bg-center p-3" style={nubeStyle(pinta.nube) ?? undefined}>
-                <AvatarMarco avatar={avatar} marco={marcoActivo} size={40} ring={ring} />
+                <AvatarMarco avatar={avatar} marco={marcoActivo} size={40} />
                 <p className="text-lg" style={{ ...colorStyle(pinta.color), fontFamily: pinta.fuente }}><span className={pinta.efecto ? `fx-${pinta.efecto}` : undefined}>Así se verán tus mensajes</span></p>
               </div>
             </DialogContent>
@@ -516,17 +510,17 @@ function NightApp() {
         <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-night/90 px-4 py-6">
           <form onSubmit={saveNickname} className="panel-neon w-full max-w-sm rounded-2xl p-5 text-primary-foreground">
             <h2 className="text-center text-xl font-extrabold">EPA DESVELADO! ¿CÓMO TE LLAMAS Y TU FOTO?</h2>
-            <div className="mt-3 flex justify-center"><AvatarMarco avatar={avatarFile ? URL.createObjectURL(avatarFile) : avatarDraft ?? avatar} marco={marcoActivo} size={88} ring={ring} /></div>
+            <div className="mt-3 flex justify-center"><AvatarMarco avatar={avatarFile ? URL.createObjectURL(avatarFile) : avatarDraft ?? avatar} marco={marcoActivo} size={88} /></div>
             <label className="mt-3 block text-sm font-semibold" htmlFor="nickname">Tu nombre</label>
             <input id="nickname" autoFocus maxLength={24} minLength={2} required value={nicknameDraft} onChange={(event) => setNicknameDraft(event.target.value)} placeholder="Desvelado_234" className="mt-1 h-11 w-full rounded-md bg-night-soft px-4 outline-none placeholder:text-primary-foreground/50 focus:ring-2 focus:ring-water" />
             <label className="mt-3 flex h-11 cursor-pointer items-center justify-center rounded-md border border-dashed border-water/60 text-sm font-semibold">
               📸 SUBIR MI FOTO DE GALERÍA
               <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f && f.size <= 5_000_000) { setAvatarFile(f); setAvatarDraft(null); } else if (f) toast.error("La foto debe pesar menos de 5 MB."); }} />
             </label>
-            <div className="mt-3 grid grid-cols-5 place-items-center gap-2">
+            <div className="mt-3 grid grid-cols-5 gap-2">
               {AVATARES.map((a) => (
-                <button key={a} type="button" onClick={() => { setAvatarDraft(a); setAvatarFile(null); }} className={`aspect-square w-full overflow-hidden rounded-full ring-2 ${avatarDraft === a && !avatarFile ? "ring-gold" : ring ?? "ring-transparent"}`}>
-                  <img src={a} alt="Avatar" className="aspect-square h-full w-full rounded-full object-cover" />
+                <button key={a} type="button" onClick={() => { setAvatarDraft(a); setAvatarFile(null); }} className={`overflow-hidden rounded-full ring-2 ${avatarDraft === a && !avatarFile ? "ring-gold" : "ring-transparent"}`}>
+                  <img src={a} alt="Avatar" className="aspect-square w-full object-cover" />
                 </button>
               ))}
             </div>
