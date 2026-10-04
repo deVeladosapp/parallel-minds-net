@@ -168,11 +168,12 @@ export const comprarMarco = createServerFn({ method: "POST" })
 export const comprarItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({
-    item: z.string().regex(/^(nube-(1[1-9]|20)|fondo-(1[3-9]|2[0-4]))$/),
+    item: z.string().regex(/^(nube-(1[1-9]|20)|fondo-(1[3-9]|2[0-4])|efecto-([6-9]|1[0-9]|20)|color-([5-9]|1[0-9]|2[0-3]))$/),
     roomId: z.string().uuid().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
-    const { COSTO_PREMIUM } = await import("./pinta");
+    const { costoItem } = await import("./pinta");
+    const COSTO_PREMIUM = costoItem(data.item);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
     let gratis = false;

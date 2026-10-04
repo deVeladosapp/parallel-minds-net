@@ -46,8 +46,8 @@ export function MarcoGrid({ limpio, unlocked, activo, onPick }: { limpio?: boole
     <div className="grid grid-cols-3 gap-3">
       {MARCOS.map((m) => (
         <button key={m.id} type="button" onClick={() => onPick(m.id)} aria-label={`Marco ${m.id}`} className={`flex flex-col items-center gap-1 rounded-xl p-1 ${activo === m.id ? "ring-2 ring-water" : ""}`}>
-          <span className="relative block size-20 rounded-full bg-night">
-            <img src={m.src} alt="" className="size-full rounded-xl object-contain" />
+          <span className={`relative block size-20 bg-night ${m.id <= 10 ? "aspect-square overflow-hidden rounded-full" : "rounded-full"}`}>
+            <img src={m.src} alt="" className={m.id <= 10 ? "aspect-square size-full rounded-full object-cover" : "size-full rounded-xl object-contain"} />
             {!limpio && m.vip && !unlocked(m.id) && <span className="absolute right-0 top-0 text-sm">🔒</span>}
           </span>
           {!limpio && (m.vip ? (
