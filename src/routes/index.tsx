@@ -14,6 +14,7 @@ import { AVATARES, MARCOS } from "@/lib/desvelados";
 import { comprarItem, comprarMarco } from "@/lib/pagos.functions";
 import { COLORES_GLOW, COSTO_PREMIUM, EFECTOS, FONDOS, NUBES, colorStyle, nubeStyle } from "@/lib/pinta";
 import { MapaLive } from "@/components/MapaLive";
+import { playEntrySound, playSendSound } from "@/lib/sonidos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -297,6 +298,7 @@ function NightApp() {
   const sendMessage = async ({ text }: { text: string }) => {
     const body = text.trim();
     if (!body || !authId || !nickname || !activeRoom) return;
+    playSendSound();
     const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente, avatar_url: avatar, marco: marcoActivo, burbuja: pinta.nube, efecto: pinta.efecto } as any);
     if (error) setNotice("Tu mensaje no pudo enviarse. Intenta de nuevo.");
   };
@@ -329,6 +331,7 @@ function NightApp() {
       if (presenceError) throw presenceError;
       setMessages([]);
       setActiveRoom(room);
+      playEntrySound();
       setScreen("chat");
     } catch {
       setNotice("No pudimos abrir esta sala. Intenta otra vez.");
