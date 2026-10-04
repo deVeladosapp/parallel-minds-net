@@ -14,6 +14,7 @@ import { AVATARES, MARCOS } from "@/lib/desvelados";
 import { comprarItem, comprarMarco } from "@/lib/pagos.functions";
 import { COLORES_GLOW, COSTO_PREMIUM, costoItem, EFECTOS, FONDOS, NUBES, colorStyle, nubeStyle } from "@/lib/pinta";
 import { MapaLive } from "@/components/MapaLive";
+import { MediaMensaje, MediaVipButtons } from "@/components/MediaVip";
 import { playEntrySound, playSendSound } from "@/hooks/useSound";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -303,6 +304,13 @@ function NightApp() {
     if (error) setNotice("Tu mensaje no pudo enviarse. Intenta de nuevo.");
   };
 
+  const sendMedia = async (tipo: "audio" | "image", path: string) => {
+    if (!authId || !activeRoom) return;
+    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body: tipo === "audio" ? "🎤 Nota de voz" : "📷 Foto", state: "Lara", room_id: activeRoom.id, avatar_url: avatar, marco: marcoActivo, burbuja: pinta.nube, tipo, media_path: path } as any);
+    if (error) setNotice("No se pudo enviar. Intenta de nuevo.");
+    else playSendSound();
+  };
+
   const enterRoom = async (choice: SalaChoice) => {
     if (!authId) return;
     setEnteringTema(choice.tema);
@@ -393,6 +401,7 @@ function NightApp() {
                       <p className="min-w-0 flex-1 break-words text-lg leading-snug sm:text-xl" style={{ ...colorStyle(message.color), fontFamily: message.fuente || undefined }}><span className={(message as any).efecto ? `fx-${(message as any).efecto}` : undefined}>{message.body}</span></p>
                       <time className="shrink-0 text-sm opacity-60">{new Date(message.created_at).toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" })}</time>
                     </div>
+                    {(message as any).media_path && <MediaMensaje tipo={(message as any).tipo} path={(message as any).media_path} />}
                   </MessageContent>
                 </Message>
               ))}
@@ -401,7 +410,8 @@ function NightApp() {
 
           <PromptInput onSubmit={sendMessage} className="mt-2 rounded-[1.5rem] border-water/60 bg-night-soft/85 text-primary-foreground">
             <PromptInputTextarea aria-label="Mensaje" placeholder="Suelta lo que sientes..." className="min-h-10 py-2 px-4 text-base text-primary-foreground placeholder:text-primary-foreground/55" />
-            <PromptInputFooter className="justify-end px-2 pb-1.5">
+            <PromptInputFooter className="justify-between px-2 pb-1.5">
+              {activeRoom.es_vip && authId ? <MediaVipButtons userId={authId} onSend={sendMedia} /> : <span />}
               <PromptInputSubmit aria-label="Enviar mensaje" className="size-9 rounded-full bg-mint text-ink hover:bg-mint/90"><Send className="size-5" /></PromptInputSubmit>
             </PromptInputFooter>
           </PromptInput>
