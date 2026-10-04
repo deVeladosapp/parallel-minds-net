@@ -1,4 +1,7 @@
 export const COSTO_PREMIUM = 30;
+export const COSTO_EFECTO = 70;
+export const COSTO_COLOR = 30;
+export const costoItem = (item: string) => item.startsWith("efecto-") ? COSTO_EFECTO : item.startsWith("color-") ? COSTO_COLOR : COSTO_PREMIUM;
 
 export type Nube = { id: number; nombre: string; premium: boolean; color?: string; img?: string; texto: string };
 const PASTEL = ["#F9C4E8", "#A5C0F7", "#94E3B5", "#FBA36E", "#C38AF5", "#FBDC7E", "#D9D9D9", "#5ED6D2", "#F98B7F", "#FFFFFF"];
@@ -18,9 +21,9 @@ export const FONDOS: Fondo[] = Array.from({ length: 24 }, (_, i) => ({ id: i + 1
 export const EFECTOS = [
   "Neon Glow", "Gold 3D", "Wavy", "Rainbow", "Fire", "Ice", "Outline", "Shadow", "Glitch", "Retro 80s",
   "Graffiti", "Chrome", "Comic", "Liquid", "Pixel 8-bit", "Electric", "Hologram", "Typewriter", "Bubble", "Gradient",
-].map((nombre, i) => ({ id: i + 1, nombre, clase: `fx-${i + 1}` }));
+].map((nombre, i) => ({ id: i + 1, nombre, clase: `fx-${i + 1}`, premium: i >= 5 }));
 
-export const COLORES_GLOW = [
+export const COLORES_GLOW: { nombre: string; c: string; premium?: boolean }[] = [
   { nombre: "Oro", c: "#FFD700" }, { nombre: "Plata", c: "#E8E8F0" }, { nombre: "Cobre", c: "#E08D5B" },
   { nombre: "Morado diamante", c: "#C77DFF" }, { nombre: "Esmeralda", c: "#2EE59D" }, { nombre: "Rubí", c: "#FF2E63" },
   { nombre: "Zafiro", c: "#3D8BFF" }, { nombre: "Turquesa", c: "#2DE2E6" }, { nombre: "Rosa neón", c: "#FF4FD8" },
@@ -28,6 +31,7 @@ export const COLORES_GLOW = [
   { nombre: "Lavanda", c: "#B79CFF" }, { nombre: "Champán", c: "#F7E7B4" }, { nombre: "Coral", c: "#FF8A7A" },
   { nombre: "Ámbar", c: "#FFB000" }, { nombre: "Menta", c: "#7CFFCB" }, { nombre: "Magenta", c: "#FF00C8" },
   { nombre: "Cian eléctrico", c: "#00F0FF" }, { nombre: "Perla", c: "#FFF6E9" },
+  { nombre: "Violeta", c: "#9D4EDD" }, { nombre: "Fucsia", c: "#FF1F8F" }, { nombre: "Verde neón", c: "#39FF14" }, { nombre: "Azul hielo", c: "#61C9FF" },
 ];
 /** Color guardado como "#hex" o "glow:#hex" */
 export const colorStyle = (v: string | null | undefined) => {
@@ -38,3 +42,5 @@ export const colorStyle = (v: string | null | undefined) => {
   }
   return { color: v };
 };
+
+COLORES_GLOW.forEach((g, i) => { g.premium = i >= 5; });

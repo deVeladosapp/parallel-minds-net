@@ -12,9 +12,9 @@ import { AvatarMarco, MarcoGrid } from "@/components/AvatarMarco";
 import { CafecitoDialog } from "@/components/CafecitoDialog";
 import { AVATARES, MARCOS } from "@/lib/desvelados";
 import { comprarItem, comprarMarco } from "@/lib/pagos.functions";
-import { COLORES_GLOW, COSTO_PREMIUM, EFECTOS, FONDOS, NUBES, colorStyle, nubeStyle } from "@/lib/pinta";
+import { COLORES_GLOW, COSTO_PREMIUM, costoItem, EFECTOS, FONDOS, NUBES, colorStyle, nubeStyle } from "@/lib/pinta";
 import { MapaLive } from "@/components/MapaLive";
-import { playEntrySound, playSendSound } from "@/lib/sonidos";
+import { playEntrySound, playSendSound } from "@/hooks/useSound";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,7 +127,7 @@ function NightApp() {
       if (!res.ok) { toast.error(res.error); return; }
       setSaldo(res.saldo);
       setItems((v) => [...v, item]);
-      toast(res.gratis ? "¡Gratis por estar en sala VIP! ✨" : `¡Activo por 1 día! −${COSTO_PREMIUM} 🪙`);
+      toast(res.gratis ? "¡Gratis por estar en sala VIP! ✨" : `¡Activo por 1 día! −${costoItem(item)} 🪙`);
     }
     apply();
   };
@@ -422,8 +422,8 @@ function NightApp() {
                     <button key={c} type="button" aria-label={`Color ${c}`} onClick={() => updatePinta({ color: c })} style={{ backgroundColor: c }} className={`size-9 rounded-full border-2 ${pinta.color === c ? "border-ring ring-2 ring-ring" : "border-border"}`} />
                   ))}
                   <p className="col-span-6 mt-2 text-xs font-bold text-gold">✨ Colores premium con brillo</p>
-                  {COLORES_GLOW.map((g) => (
-                    <button key={g.c} type="button" aria-label={`Color ${g.nombre}`} title={g.nombre} onClick={() => updatePinta({ color: `glow:${g.c}` })} style={{ backgroundColor: g.c, boxShadow: `0 0 10px ${g.c}, 0 0 18px ${g.c}` }} className={`size-9 rounded-full border-2 ${pinta.color === `glow:${g.c}` ? "border-ring ring-2 ring-ring" : "border-paper/60"}`} />
+                  {COLORES_GLOW.map((g, gi) => (
+                    <button key={g.c} type="button" aria-label={`Color ${g.nombre}`} title={g.premium ? `${g.nombre} · 30 🪙` : g.nombre} onClick={() => g.premium ? void pickPremium(`color-${gi}`, () => updatePinta({ color: `glow:${g.c}` })) : updatePinta({ color: `glow:${g.c}` })} style={{ backgroundColor: g.c, boxShadow: `0 0 10px ${g.c}, 0 0 18px ${g.c}` }} className={`relative size-9 rounded-full border-2 ${pinta.color === `glow:${g.c}` ? "border-ring ring-2 ring-ring" : "border-paper/60"}`}>{g.premium && !items.includes(`color-${gi}`) && !activeRoom?.es_vip && <span className="absolute -right-1 -top-1 text-[11px]">🔒</span>}</button>
                   ))}
                 </div>
               )}
@@ -443,9 +443,10 @@ function NightApp() {
                 <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto pr-1">
                   <button type="button" onClick={() => updatePinta({ efecto: null })} className={`h-14 rounded-lg border text-sm ${pinta.efecto === null ? "border-water" : "border-border"}`}>Sin efecto</button>
                   {EFECTOS.map((e) => (
-                    <button key={e.id} type="button" onClick={() => updatePinta({ efecto: e.id })} className={`flex h-14 flex-col items-center justify-center overflow-hidden rounded-lg border bg-night px-1 ${pinta.efecto === e.id ? "border-water ring-2 ring-water" : "border-border"}`}>
+                    <button key={e.id} type="button" onClick={() => e.premium ? void pickPremium(`efecto-${e.id}`, () => updatePinta({ efecto: e.id })) : updatePinta({ efecto: e.id })} className={`relative flex h-14 flex-col items-center justify-center overflow-hidden rounded-lg border bg-night px-1 ${pinta.efecto === e.id ? "border-water ring-2 ring-water" : "border-border"}`}>
                       <span className={`text-lg font-black ${e.clase}`}>SAMPLE</span>
                       <span className="text-[10px] opacity-70">{e.id} {e.nombre}</span>
+                      {e.premium && !items.includes(`efecto-${e.id}`) && !activeRoom?.es_vip ? <span className="absolute right-1 top-1 text-[10px] text-gold">🔒 <span className="moneda-3d">$</span>70</span> : <span className="absolute right-1 top-1 text-[9px] text-mint">GRATIS</span>}
                     </button>
                   ))}
                 </div>
