@@ -32,7 +32,7 @@ export function AvatarMarco({ avatar, marco, size = 40 }: { avatar: string | nul
   return (
     <span className="relative inline-block shrink-0" style={{ width: size, height: size }}>
       {src ? (
-        <img src={src} alt="" className="absolute inset-[14%] size-[72%] rounded-full object-cover" />
+        <img src={src} alt="" className="absolute inset-[14%] size-[72%] rounded-full object-cover" style={{ borderRadius: "50%", aspectRatio: "1 / 1", overflow: "hidden", objectFit: "cover", display: "block" }} />
       ) : (
         <span className="absolute inset-[14%] grid size-[72%] place-items-center rounded-full bg-night-soft text-xs text-primary-foreground">🌙</span>
       )}
@@ -47,7 +47,7 @@ export function MarcoGrid({ limpio, unlocked, activo, onPick }: { limpio?: boole
       {MARCOS.map((m) => (
         <button key={m.id} type="button" onClick={() => onPick(m.id)} aria-label={`Marco ${m.id}`} className={`flex flex-col items-center gap-1 rounded-xl p-1 ${activo === m.id ? "ring-2 ring-water" : ""}`}>
           <span className={`relative block size-20 bg-night ${m.id <= 10 ? "aspect-square overflow-hidden rounded-full" : "rounded-full"}`}>
-            <img src={m.src} alt="" className={m.id <= 10 ? "aspect-square size-full rounded-full object-cover" : "size-full rounded-xl object-contain"} />
+            <img src={m.src} alt="" className={m.id <= 10 ? "aspect-square size-full rounded-full object-cover" : "size-full rounded-xl object-contain"} style={m.id <= 10 ? { borderRadius: "50%", aspectRatio: "1 / 1", objectFit: "cover", width: "100%", height: "100%", display: "block" } : undefined} />
             {!limpio && m.vip && !unlocked(m.id) && <span className="absolute right-0 top-0 text-sm">🔒</span>}
           </span>
           {!limpio && (m.vip ? (
