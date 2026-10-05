@@ -17,10 +17,9 @@ GRANT ALL ON public.items_usuario TO service_role;
 ALTER TABLE public.items_usuario ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own items" ON public.items_usuario FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
--- Audios y fotos en salas VIP
+-- Audios y fotos en salas VIP (buckets creados con la herramienta de almacenamiento)
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'text';
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS media_path text;
-INSERT INTO storage.buckets (id, name, public) VALUES ('audios','audios',false), ('fotos-vip','fotos-vip',false) ON CONFLICT (id) DO NOTHING;
 CREATE POLICY "Leer media VIP" ON storage.objects FOR SELECT TO authenticated USING (bucket_id IN ('audios','fotos-vip'));
 CREATE POLICY "Subir mi media VIP" ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id IN ('audios','fotos-vip') AND (storage.foldername(name))[1] = auth.uid()::text);
