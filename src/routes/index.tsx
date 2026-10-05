@@ -300,7 +300,9 @@ function NightApp() {
     const body = text.trim();
     if (!body || !authId || !nickname || !activeRoom) return;
     playSendSound();
-    const { error } = await supabase.from("messages").insert({ user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente, avatar_url: avatar, marco: marcoActivo, burbuja: pinta.nube, efecto: pinta.efecto } as any);
+    const base = { user_id: authId, nickname, body, state: "Lara", room_id: activeRoom.id, color: pinta.color, fuente: pinta.fuente };
+    let { error } = await supabase.from("messages").insert({ ...base, avatar_url: avatar, marco: marcoActivo, burbuja: pinta.nube, efecto: pinta.efecto } as any);
+    if (error) ({ error } = await supabase.from("messages").insert(base));
     if (error) setNotice("Tu mensaje no pudo enviarse. Intenta de nuevo.");
   };
 
