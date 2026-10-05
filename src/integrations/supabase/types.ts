@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      items_usuario: {
+        Row: {
+          created_at: string
+          expira: string
+          id: string
+          item: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expira: string
+          id?: string
+          item: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expira?: string
+          id?: string
+          item?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       marcos_usuario: {
         Row: {
           created_at: string
@@ -42,40 +66,52 @@ export type Database = {
         Row: {
           avatar_url: string | null
           body: string
+          burbuja: number | null
           color: string | null
           created_at: string
+          efecto: number | null
           fuente: string | null
           id: string
           marco: number | null
+          media_path: string | null
           nickname: string
           room_id: string | null
           state: string
+          tipo: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
           body: string
+          burbuja?: number | null
           color?: string | null
           created_at?: string
+          efecto?: number | null
           fuente?: string | null
           id?: string
           marco?: number | null
+          media_path?: string | null
           nickname: string
           room_id?: string | null
           state?: string
+          tipo?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
           body?: string
+          burbuja?: number | null
           color?: string | null
           created_at?: string
+          efecto?: number | null
           fuente?: string | null
           id?: string
           marco?: number | null
+          media_path?: string | null
           nickname?: string
           room_id?: string | null
           state?: string
+          tipo?: string
           user_id?: string
         }
         Relationships: [
@@ -138,7 +174,10 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          chat_background_url: string | null
+          chat_bubble_style: number | null
           created_at: string
+          efecto_letra: number | null
           id: string
           marco_activo: number | null
           nickname: string
@@ -148,7 +187,10 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          chat_background_url?: string | null
+          chat_bubble_style?: number | null
           created_at?: string
+          efecto_letra?: number | null
           id: string
           marco_activo?: number | null
           nickname: string
@@ -158,7 +200,10 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          chat_background_url?: string | null
+          chat_bubble_style?: number | null
           created_at?: string
+          efecto_letra?: number | null
           id?: string
           marco_activo?: number | null
           nickname?: string

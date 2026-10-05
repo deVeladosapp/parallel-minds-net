@@ -36,6 +36,13 @@
       "when": 1791164632010,
       "tag": "0004_monedas_marcos_pagos",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791164674083,
+      "tag": "0005_pinta_premium",
+      "breakpoints": true
     }
   ]
 }
