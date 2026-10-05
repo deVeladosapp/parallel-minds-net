@@ -14,35 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      marcos_usuario: {
+        Row: {
+          created_at: string
+          expira: string
+          id: string
+          marco_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expira: string
+          id?: string
+          marco_id: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expira?: string
+          id?: string
+          marco_id?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
+          avatar_url: string | null
           body: string
           color: string | null
           created_at: string
           fuente: string | null
           id: string
+          marco: number | null
           nickname: string
           room_id: string | null
           state: string
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           body: string
           color?: string | null
           created_at?: string
           fuente?: string | null
           id?: string
+          marco?: number | null
           nickname: string
           room_id?: string | null
           state?: string
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           body?: string
           color?: string | null
           created_at?: string
           fuente?: string | null
           id?: string
+          marco?: number | null
           nickname?: string
           room_id?: string | null
           state?: string
@@ -57,6 +87,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      monedas: {
+        Row: {
+          saldo: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          saldo?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          saldo?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       presencia_sala: {
         Row: {
@@ -89,23 +137,32 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           id: string
+          marco_activo: number | null
           nickname: string
+          pais: string | null
           state: string
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           id: string
+          marco_activo?: number | null
           nickname: string
+          pais?: string | null
           state?: string
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           id?: string
+          marco_activo?: number | null
           nickname?: string
+          pais?: string | null
           state?: string
           updated_at?: string
         }
@@ -143,6 +200,7 @@ export type Database = {
           subtitle: string
           tema: string
           title: string
+          vence: string | null
         }
         Insert: {
           created_at?: string
@@ -154,6 +212,7 @@ export type Database = {
           subtitle: string
           tema: string
           title: string
+          vence?: string | null
         }
         Update: {
           created_at?: string
@@ -165,6 +224,76 @@ export type Database = {
           subtitle?: string
           tema?: string
           title?: string
+          vence?: string | null
+        }
+        Relationships: []
+      }
+      transacciones: {
+        Row: {
+          captura_path: string | null
+          descripcion_sala: string | null
+          estado: string
+          fecha: string
+          id: string
+          lectura_ia: Json | null
+          metodo_pago: string
+          monedas_acreditadas: number
+          monto_bs: number
+          nombre_sala: string | null
+          referencia: string
+          sala_tema: string | null
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          captura_path?: string | null
+          descripcion_sala?: string | null
+          estado?: string
+          fecha?: string
+          id?: string
+          lectura_ia?: Json | null
+          metodo_pago: string
+          monedas_acreditadas?: number
+          monto_bs: number
+          nombre_sala?: string | null
+          referencia: string
+          sala_tema?: string | null
+          tipo?: string
+          user_id: string
+        }
+        Update: {
+          captura_path?: string | null
+          descripcion_sala?: string | null
+          estado?: string
+          fecha?: string
+          id?: string
+          lectura_ia?: Json | null
+          metodo_pago?: string
+          monedas_acreditadas?: number
+          monto_bs?: number
+          nombre_sala?: string | null
+          referencia?: string
+          sala_tema?: string | null
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -173,10 +302,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -303,6 +438,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
